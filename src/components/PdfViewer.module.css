@@ -1,0 +1,14 @@
+.frame {
+  width: 100%;
+  height: min(75vh, 900px);
+  min-height: 420px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-inner);
+  background: var(--surface-2);
+}
+
+.links {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}

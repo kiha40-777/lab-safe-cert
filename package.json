@@ -1,0 +1,46 @@
+{
+  "name": "lab-safe-cert",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Web-based lab safety certification tests (participant / supervisor) for iGEM teams",
+  "license": "Apache-2.0",
+  "author": "iGEM Waseda-Tokyo 2026",
+  "repository": {
+    "type": "git",
+    "url": "https://gitlab.igem.org/2026/software/waseda-tokyo/lab-safe-cert.git"
+  },
+  "keywords": [
+    "igem",
+    "lab-safety",
+    "certification",
+    "quiz",
+    "nextjs"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "node scripts/next.mjs dev",
+    "build": "node scripts/next.mjs build",
+    "start": "node scripts/launch.mjs",
+    "start:lan": "node scripts/launch.mjs --lan",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run lint && npm run test"
+  },
+  "dependencies": {
+    "next": "16.3.7",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.7",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

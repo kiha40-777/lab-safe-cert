@@ -1,0 +1,29 @@
+# Start:   docker compose up --build -d
+# Logs:    docker compose logs app     (the first-start admin password is printed here)
+# Stop:    docker compose down          (the data volume is kept)
+#
+# Optional settings can be put in a file named `.env` next to this file, for example:
+#   ADMIN_PASSWORD=...        (otherwise a random one is generated and printed on the first start)
+#   PARTICIPANT_PASSWORD=...  (otherwise the admin sets it in the admin screen)
+#   PORT=8080                 (port on this computer, default 3000)
+# See .env.example for all settings. Never commit a real `.env` file.
+services:
+  app:
+    build: .
+    image: lab-safe-cert
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      LSC_RESET_ADMIN_PASSWORD: ${LSC_RESET_ADMIN_PASSWORD:-}   # set to 1 for ONE start to get a new admin password
+      PARTICIPANT_PASSWORD: ${PARTICIPANT_PASSWORD:-}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}
+      MAX_PDF_MB: ${MAX_PDF_MB:-25}
+      DEFAULT_LANG: ${DEFAULT_LANG:-}
+    volumes:
+      - lab-safe-cert-data:/data
+    restart: unless-stopped
+
+volumes:
+  lab-safe-cert-data:

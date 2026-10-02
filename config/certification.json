@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "roles": ["candidate", "participant", "supervisor"],
+  "defaultRole": "candidate",
+  "questionBank": {
+    "minChoices": 2,
+    "maxChoices": 6,
+    "preferredChoices": 4
+  },
+  "shuffle": {
+    "questions": true,
+    "choices": true
+  },
+  "tests": [
+    {
+      "id": "participant",
+      "requiresRole": "candidate",
+      "grantsRole": "participant",
+      "questionsPerTest": 30,
+      "expectedBankSize": 60,
+      "passRate": 1
+    },
+    {
+      "id": "supervisor",
+      "requiresRole": "participant",
+      "grantsRole": "supervisor",
+      "questionsPerTest": 30,
+      "expectedBankSize": 60,
+      "passRate": 1
+    }
+  ]
+}

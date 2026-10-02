@@ -1,0 +1,4 @@
+# Keep line endings that the launcher scripts need, whatever the platform of the contributor.
+*.sh text eol=lf
+*.command text eol=lf
+*.bat text eol=crlf
