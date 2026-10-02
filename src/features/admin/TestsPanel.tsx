@@ -18,7 +18,7 @@ export function TestsPanel({
 }: {
   overview: AdminOverview;
   reload: () => Promise<void>;
-  /** id of the test whose tab is open (from the address) */
+  /** id of the test that is open (chosen in the sidebar) */
   selected: string;
 }) {
   const { t } = useI18n();
@@ -34,20 +34,6 @@ export function TestsPanel({
         <h2>{t("admin.tests.title")}</h2>
         <p className="muted">{t("admin.tests.intro")}</p>
       </div>
-
-      <nav className="tabs" aria-label={t("admin.tests.title")}>
-        {certification.tests.map((x) => (
-          <a
-            key={x.id}
-            className="tab"
-            href={`#tests/${x.id}`}
-            aria-current={x.id === test.id ? "page" : undefined}
-            style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}
-          >
-            {t.dynamic("tests", `${x.id}.name`)}
-          </a>
-        ))}
-      </nav>
 
       <h3 style={{ fontSize: "1.2rem" }}>{t.dynamic("tests", `${test.id}.name`)}</h3>
 

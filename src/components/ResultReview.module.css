@@ -1,3 +1,93 @@
+/* With the jump panel: heading on top left, the list below it, the panel in a column of its own on the right.
+   Without it the section is a plain stack (see the component). */
+.withJump {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 15.5rem;
+  grid-template-areas:
+    "top jump"
+    "body jump";
+  grid-template-rows: auto 1fr;
+  gap: var(--gap);
+  align-items: start;
+}
+.top {
+  grid-area: top;
+}
+.body {
+  grid-area: body;
+}
+
+.jump {
+  grid-area: jump;
+  position: sticky;
+  top: 4.5rem;
+  max-height: calc(100vh - 5.5rem);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.jumpGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
+  gap: 0.4rem;
+}
+.jumpButton {
+  position: relative;
+  min-height: 44px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-inner);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.jumpButton:hover {
+  border-color: var(--primary);
+}
+.jumpButton.correct {
+  background: var(--success-soft);
+  border-color: var(--success);
+}
+.jumpButton.incorrect {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+.jumpButton.unanswered {
+  background: var(--warning-soft);
+  border-color: var(--warning);
+}
+/* A small mark in the corner so the result is not shown by colour alone. */
+.mark {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+@media (max-width: 800px) {
+  .withJump {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "top"
+      "jump"
+      "body";
+    grid-template-rows: auto;
+  }
+  .jump {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+  /* The top bar wraps to two lines on a phone. */
+  .item {
+    scroll-margin-top: 7.5rem;
+  }
+}
+
 .list {
   list-style: none;
   margin: 0;
@@ -8,6 +98,7 @@
 }
 
 .item {
+  scroll-margin-top: 4.5rem; /* below the sticky top bar when jumped to */
   background: var(--surface);
   border: 1px solid var(--border);
   border-left-width: 6px;
@@ -27,6 +118,10 @@
   gap: 0.6rem;
   flex-wrap: wrap;
   margin-bottom: 0.5rem;
+}
+
+.head h3:focus {
+  outline: none;
 }
 
 .text {

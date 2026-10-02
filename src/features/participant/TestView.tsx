@@ -92,7 +92,7 @@ export function TestView({
   const isLast = index === total - 1;
 
   return (
-    <main id="main" className="container">
+    <main id="main" className="container container-wide">
       <div className="stack">
         <div className="row-wrap">
           <h1 style={{ fontSize: "1.3rem" }}>{t.dynamic("tests", `${attempt.testId}.name`)}</h1>
@@ -104,89 +104,91 @@ export function TestView({
 
         {attempt.resumed ? <Notice kind="info">{t("test.restored")}</Notice> : null}
 
-        <section className="card stack" aria-labelledby="question-heading">
-          <div className="row-wrap">
-            <h2 id="question-heading" ref={heading} tabIndex={-1} className={styles.heading}>
-              {t("test.questionOf", { current: index + 1, total })}
-            </h2>
-            <span className="spacer" />
-            <span className="muted small">{t("test.answered", { answered: answeredCount, total })}</span>
-          </div>
-          <progress className={styles.progress} max={total} value={answeredCount} aria-hidden="true" />
+        <div className={styles.layout}>
+          <section className="card stack" aria-labelledby="question-heading">
+            <div className="row-wrap">
+              <h2 id="question-heading" ref={heading} tabIndex={-1} className={styles.heading}>
+                {t("test.questionOf", { current: index + 1, total })}
+              </h2>
+              <span className="spacer" />
+              <span className="muted small">{t("test.answered", { answered: answeredCount, total })}</span>
+            </div>
+            <progress className={styles.progress} max={total} value={answeredCount} aria-hidden="true" />
 
-          <fieldset className={styles.question}>
-            <legend className={styles.legend}>{question.text}</legend>
-            <div className={styles.choices} role="radiogroup" aria-label={t("test.choices")}>
-              {question.choices.map((choice, k) => {
-                const selected = answers[index] === k;
+            <fieldset className={styles.question}>
+              <legend className={styles.legend}>{question.text}</legend>
+              <div className={styles.choices} role="radiogroup" aria-label={t("test.choices")}>
+                {question.choices.map((choice, k) => {
+                  const selected = answers[index] === k;
+                  return (
+                    <label key={`${index}-${k}`} className={`${styles.choice} ${selected ? styles.selected : ""}`.trim()}>
+                      <input
+                        type="radio"
+                        name={`question-${index}`}
+                        checked={selected}
+                        onChange={() => choose(k)}
+                      />
+                      <span className={styles.letter} aria-hidden="true">
+                        {LETTERS[k] ?? k + 1}
+                      </span>
+                      <span className={styles.choiceText}>{choice}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <div className="row-wrap">
+              <button type="button" className="btn" onClick={() => setIndex(index - 1)} disabled={index === 0}>
+                {t("test.previous")}
+              </button>
+              <span className="spacer" />
+              {isLast ? (
+                <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)}>
+                  {t("test.review")}
+                </button>
+              ) : (
+                <button type="button" className="btn btn-primary" onClick={() => setIndex(index + 1)}>
+                  {t("test.next")}
+                </button>
+              )}
+            </div>
+          </section>
+
+          <section className={`card stack ${styles.side}`} aria-labelledby="navigator-heading">
+            <h2 id="navigator-heading" style={{ fontSize: "1rem" }}>
+              {t("test.navigator")}
+            </h2>
+            <div className={styles.nav}>
+              {answers.map((answer, i) => {
+                const state = i === index ? "current" : answer !== null ? "answered" : "";
                 return (
-                  <label key={`${index}-${k}`} className={`${styles.choice} ${selected ? styles.selected : ""}`.trim()}>
-                    <input
-                      type="radio"
-                      name={`question-${index}`}
-                      checked={selected}
-                      onChange={() => choose(k)}
-                    />
-                    <span className={styles.letter} aria-hidden="true">
-                      {LETTERS[k] ?? k + 1}
-                    </span>
-                    <span className={styles.choiceText}>{choice}</span>
-                  </label>
+                  <button
+                    key={i}
+                    type="button"
+                    className={`${styles.navButton} ${state ? styles[state] : ""}`.trim()}
+                    aria-current={i === index ? "step" : undefined}
+                    aria-label={`${answer !== null ? t("test.navAnswered", { n: i + 1 }) : t("test.navUnanswered", { n: i + 1 })}${
+                      i === index ? `, ${t("test.navCurrent")}` : ""
+                    }`}
+                    onClick={() => setIndex(i)}
+                  >
+                    {i + 1}
+                  </button>
                 );
               })}
             </div>
-          </fieldset>
-
-          <div className="row-wrap">
-            <button type="button" className="btn" onClick={() => setIndex(index - 1)} disabled={index === 0}>
-              {t("test.previous")}
-            </button>
-            <span className="spacer" />
-            {isLast ? (
+            <div className="row-wrap">
+              <span className="hint" role="status">
+                {saveFailed ? t("test.autosaveFailed") : t("test.autosaved")}
+              </span>
+              <span className="spacer" />
               <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)}>
-                {t("test.review")}
+                {t("test.handIn")}
               </button>
-            ) : (
-              <button type="button" className="btn btn-primary" onClick={() => setIndex(index + 1)}>
-                {t("test.next")}
-              </button>
-            )}
-          </div>
-        </section>
-
-        <section className="card stack" aria-labelledby="navigator-heading">
-          <h2 id="navigator-heading" style={{ fontSize: "1rem" }}>
-            {t("test.navigator")}
-          </h2>
-          <div className={styles.nav}>
-            {answers.map((answer, i) => {
-              const state = i === index ? "current" : answer !== null ? "answered" : "";
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  className={`${styles.navButton} ${state ? styles[state] : ""}`.trim()}
-                  aria-current={i === index ? "step" : undefined}
-                  aria-label={`${answer !== null ? t("test.navAnswered", { n: i + 1 }) : t("test.navUnanswered", { n: i + 1 })}${
-                    i === index ? `, ${t("test.navCurrent")}` : ""
-                  }`}
-                  onClick={() => setIndex(i)}
-                >
-                  {i + 1}
-                </button>
-              );
-            })}
-          </div>
-          <div className="row-wrap">
-            <span className="hint" role="status">
-              {saveFailed ? t("test.autosaveFailed") : t("test.autosaved")}
-            </span>
-            <span className="spacer" />
-            <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)}>
-              {t("test.handIn")}
-            </button>
-          </div>
-        </section>
+            </div>
+          </section>
+        </div>
       </div>
 
       <Dialog open={confirming} onClose={() => !submitting && setConfirming(false)} title={t("test.confirmTitle")}>

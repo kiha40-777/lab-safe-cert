@@ -222,7 +222,7 @@ image does, and answered correctly; see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
 ### Everyday administrator tasks
 
-- **Progress**: the *Progress* tab lists everybody with their level, attempts, best and latest score. Click a
+- **Progress**: *Progress* (in the left-hand menu) lists everybody with their level, attempts, best and latest score. Click a
   name for their history and every answer they gave. *Download results (CSV)* opens in Excel (Japanese names
   included).
 - **Fix a role by hand**: *Members* → change the role in the list (for example, someone certified on paper).

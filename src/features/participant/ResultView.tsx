@@ -25,7 +25,7 @@ export function ResultView({
   const percent = result.total > 0 ? Math.round((result.score / result.total) * 100) : 0;
 
   return (
-    <main id="main" className="container">
+    <main id="main" className="container container-wide">
       <div className="stack-lg">
         <section className="card stack">
           <p className="muted">
@@ -66,7 +66,7 @@ export function ResultView({
           </section>
         ) : null}
 
-        <ResultReview questions={result.questions} />
+        <ResultReview questions={result.questions} jump />
       </div>
     </main>
   );

@@ -51,7 +51,7 @@ Under **Members**:
 - **Add a member**: name and level. **Add many members at once**: one name per line; names that already exist are
   skipped and listed.
 - People whose name is missing can choose "Other" on the test screen and type it. They are registered as
-  *Candidate* and shown with a yellow **"Typed their own name"** mark, and the Members tab shows a number. Check
+  *Candidate* and shown with a yellow **"Typed their own name"** mark, and the **Members** entry in the left-hand menu shows a number. Check
   the spelling, fix it with *Edit* if needed, or press *Mark as checked*. (Saving any change also clears the mark.)
 - Names that differ only in capitals, spaces or full/half-width letters count as the same name.
 - Change a level by hand from the drop-down in the list (for example someone certified on paper, or a person whose
@@ -61,7 +61,7 @@ Under **Members**:
 
 ### 3. Study PDFs
 
-Under **Tests and questions**, choose the test tab, then **Study material (PDF)**: upload a PDF (up to 25 MB unless
+In the left-hand menu, under **Tests and questions**, choose the test, then **Study material (PDF)**: upload a PDF (up to 25 MB unless
 your installation says otherwise). People see it *before* they can start the test, and again on the result page.
 You can preview, replace or delete it.
 
@@ -109,7 +109,7 @@ A short review checklist:
 
 ### 5. Progress
 
-**Progress** (the first tab) shows:
+**Progress** (the first item in the left-hand menu) shows:
 
 - how many people have each level, and whether each test is *Ready* (enough questions) and has a PDF;
 - a table with every person: level, and for each test the number of attempts, the best score, and the latest score
@@ -141,11 +141,12 @@ get a leading apostrophe so that spreadsheets do not run them as formulas.
 3. **Read the study material** (the PDF on the page). If it does not show on your phone, tap *Open in a new tab*.
 4. Press **Start the test**. There are 30 questions (your administrator may have chosen another number); the
    questions and the choices are in random order for everybody. Pick one answer for each question. You can go back, and you can jump to any question with the numbered
-   buttons. Your answers are **saved automatically**. If the page is reloaded or your phone locks, come back and press
+   buttons on the right (below the question on a phone). Your answers are **saved automatically**. If the page is reloaded or your phone locks, come back and press
    *Resume the test*.
 5. Press **Hand in** when you are done. Questions left empty count as wrong.
 6. You see your score, whether you **passed**, and every question with your answer, the correct answer and (if the
-   author added one) an explanation. If you passed, your level went up (the page says so). If not, press *Show the study
+   author added one) an explanation. The numbered buttons on the right jump to a question (green: correct, red: wrong,
+   yellow: not answered). If you passed, your level went up (the page says so). If not, press *Show the study
    material again*, read, and try again; you can retake it as often as you like.
 
 If you picked the wrong name, use *Not you? Change name* on the start page (never take a test under somebody else's

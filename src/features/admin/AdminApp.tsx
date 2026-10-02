@@ -6,17 +6,18 @@ import { ErrorNotice } from "@/components/ErrorNotice";
 import { Loading } from "@/components/Loading";
 import { LoginForm } from "@/components/LoginForm";
 import { api } from "@/lib/api";
+import { findTest } from "@/lib/certification";
 import { certification } from "@/lib/config";
 import { useHash, useLoad, useUnauthorized } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n/context";
 import type { AdminOverview, AuthStatus } from "@/lib/types";
+import { type AdminTab, AdminSidebar } from "./AdminSidebar";
 import { Dashboard } from "./Dashboard";
 import { MembersPanel } from "./MembersPanel";
 import { SettingsPanel } from "./SettingsPanel";
 import { TestsPanel } from "./TestsPanel";
 
-const TABS = ["dashboard", "members", "tests", "settings"] as const;
-type Tab = (typeof TABS)[number];
+const TABS: readonly AdminTab[] = ["dashboard", "members", "tests", "settings"];
 
 function goto(hash: string) {
   window.location.hash = hash;
@@ -57,43 +58,24 @@ export function AdminApp() {
 }
 
 function AdminShell() {
-  const { t } = useI18n();
   const overview = useLoad(() => api.get<AdminOverview>("/api/admin/overview"));
   const hash = useHash();
   const [first = "", second = ""] = hash.split("/");
-  const tab: Tab = (TABS as readonly string[]).includes(first) ? (first as Tab) : "dashboard";
+  const tab = TABS.find((name) => name === first) ?? "dashboard";
 
   // A new section starts at the top of the page.
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [tab, second]);
 
-  const tabLabel: Record<Tab, string> = {
-    dashboard: t("admin.nav.dashboard"),
-    members: t("admin.nav.members"),
-    tests: t("admin.nav.tests"),
-    settings: t("admin.nav.settings"),
-  };
   const pending = overview.data?.members.filter((m) => m.selfRegistered).length ?? 0;
+  // An unknown or missing test in the address means the first test.
+  const test = findTest(certification, second) ?? certification.tests[0];
 
   return (
-    <main id="main" className="container container-wide">
-      <div className="stack-lg">
-        <nav className="tabs" aria-label={t("admin.nav.label")}>
-          {TABS.map((name) => (
-            <a
-              key={name}
-              className="tab"
-              href={name === "tests" ? `#tests/${certification.tests[0]?.id ?? ""}` : `#${name}`}
-              aria-current={tab === name ? "page" : undefined}
-              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
-            >
-              {tabLabel[name]}
-              {name === "members" && pending > 0 ? <span className="badge badge-warning">{pending}</span> : null}
-            </a>
-          ))}
-        </nav>
-
+    <div className="admin-shell">
+      <AdminSidebar tab={tab} testId={test?.id ?? ""} pendingMembers={pending} />
+      <main id="main" className="admin-main stack-lg">
         <ErrorNotice error={overview.error} />
         {!overview.data && overview.loading ? <Loading /> : null}
 
@@ -103,12 +85,12 @@ function AdminShell() {
           ) : tab === "members" ? (
             <MembersPanel members={overview.data.members} reload={overview.reload} reviewOnly={second === "review"} goto={goto} />
           ) : tab === "tests" ? (
-            <TestsPanel overview={overview.data} reload={overview.reload} selected={second} />
+            <TestsPanel overview={overview.data} reload={overview.reload} selected={test?.id ?? ""} />
           ) : (
             <SettingsPanel />
           )
         ) : null}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
