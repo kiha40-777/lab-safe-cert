@@ -16,7 +16,26 @@
   align-items: baseline;
   padding: 0.7rem 0.9rem;
   cursor: pointer;
-  list-style-position: inside;
+  /* A flex container gets no browser triangle, so the triangle is drawn here (no icon font or image). */
+  list-style: none;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary::before {
+  content: "";
+  flex: none;
+  align-self: center;
+  border-style: solid;
+  border-width: 0.3rem 0 0.3rem 0.5rem;
+  border-color: transparent transparent transparent var(--muted);
+  transition: transform 0.15s;
+}
+
+.item[open] > .summary::before {
+  transform: rotate(90deg);
 }
 
 .number {
