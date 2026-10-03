@@ -63,9 +63,9 @@ export function MaterialSection({
       <p className="muted">{t("admin.material.help")}</p>
 
       {material ? (
-        <p>
-          <strong>{t("admin.material.uploaded", { filename: material.filename, size: formatBytes(material.size) })}</strong>{" "}
-          <span className="muted small">{formatDateTime(material.uploadedAt)}</span>
+        <p className="muted">
+          {t("admin.material.uploaded", { filename: material.filename, size: formatBytes(material.size) })}{" "}
+          <span className="small">{formatDateTime(material.uploadedAt)}</span>
         </p>
       ) : (
         <p className="muted">{t("admin.material.none")}</p>
