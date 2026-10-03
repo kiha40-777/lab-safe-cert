@@ -14,7 +14,6 @@ import styles from "./BankEditor.module.css";
 import { IssueList } from "./IssueList";
 
 const LETTERS = "ABCDEFGH";
-const normalize = (text: string) => text.normalize("NFKC").toLowerCase();
 
 export interface DraftInfo {
   generator: string;
@@ -144,8 +143,6 @@ function EditorBody({
   const [questions, setQuestions] = useState<QuestionDto[]>(initialQuestions);
   const [info, setInfo] = useState<DraftInfo>(initialInfo);
   const [opened, setOpened] = useState<ReadonlySet<number>>(new Set());
-  const [filter, setFilter] = useState("");
-  const [showAnswers, setShowAnswers] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [problems, setProblems] = useState<ValidationResultDto | null>(null);
@@ -182,7 +179,6 @@ function EditorBody({
       },
     ]);
     setOpened((set) => new Set(set).add(questions.length));
-    setFilter("");
   }
 
   function removeQuestion(index: number) {
@@ -209,11 +205,6 @@ function EditorBody({
       setSaving(false);
     }
   }
-
-  const q = normalize(filter.trim());
-  const visible = questions
-    .map((question, index) => ({ question, index }))
-    .filter(({ question }) => q === "" || normalize(`${question.text} ${question.choices.join(" ")}`).includes(q));
 
   return (
     <div className="stack">
@@ -272,26 +263,8 @@ function EditorBody({
         </div>
       </details>
 
-      <div className="row-wrap">
-        <div className="field" style={{ flex: "1 1 14rem" }}>
-          <label htmlFor="bank-filter">{t("admin.bank.filter")}</label>
-          <input id="bank-filter" type="search" value={filter} onChange={(e) => setFilter(e.target.value)} />
-        </div>
-        <label className="check">
-          <input type="checkbox" checked={showAnswers} onChange={(e) => setShowAnswers(e.target.checked)} />
-          <span>{t("admin.bank.showAnswers")}</span>
-        </label>
-        {isDraft ? null : (
-          <a className="btn btn-sm" href={`/api/admin/tests/${test.id}/bank/export`} download>
-            {t("admin.bank.export")}
-          </a>
-        )}
-      </div>
-
-      {visible.length === 0 ? <p className="muted">{t("admin.bank.noMatch")}</p> : null}
-
       <div className={styles.list}>
-        {visible.map(({ question, index }) => (
+        {questions.map((question, index) => (
           <details
             key={index}
             className={styles.item}
@@ -309,11 +282,9 @@ function EditorBody({
             <summary className={styles.summary}>
               <span className={styles.number}>{t("admin.bank.questionNumber", { n: index + 1 })}</span>
               <span className={styles.excerpt}>{question.text || "…"}</span>
-              {showAnswers ? (
-                <span className={styles.correct} title={t("admin.bank.correctMark")}>
-                  ✓ {LETTERS[question.answerIndex] ?? "?"}
-                </span>
-              ) : null}
+              <span className={styles.correct} title={t("admin.bank.correctMark")}>
+                ✓ {LETTERS[question.answerIndex] ?? "?"}
+              </span>
             </summary>
 
             <div className={styles.body}>
@@ -395,6 +366,14 @@ function EditorBody({
       {justSaved && !dirty ? (
         <Notice kind="success">{t(justSaved === "import" ? "admin.bank.imported" : "admin.bank.changesSaved")}</Notice>
       ) : null}
+
+      {isDraft ? null : (
+        <div>
+          <a className="btn btn-sm" href={`/api/admin/tests/${test.id}/bank/export`} download>
+            {t("admin.bank.export")}
+          </a>
+        </div>
+      )}
 
       <div className={styles.stickyBar}>
         {dirty ? (

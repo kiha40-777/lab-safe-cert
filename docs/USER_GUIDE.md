@@ -99,7 +99,7 @@ at the bottom stays visible) and press *Save as the question bank* (or *Save cha
 before). This is the important step: **AI drafts contain mistakes**. Please do check. The confirmation is asked
 again for every save, and it is cleared when you change anything after ticking it. Saving a file replaces the current
 bank (finished results are not affected); *Discard these questions* drops the unsaved file instead.
-*Download as JSON* saves the stored bank as a file in the same format (a good way to keep a copy or move it to
+*Download as JSON* (at the bottom of the card) saves the stored bank as a file in the same format (a good way to keep a copy or move it to
 another installation).
 
 A short review checklist:
