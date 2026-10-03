@@ -57,8 +57,8 @@ export type SaveMode = { kind: "import" | "edit"; reviewConfirmed: boolean };
 
 /**
  * Stores the (already validated) bank as the active one for the test.
- * A file import must be confirmed as reviewed by a person; an edit of an
- * existing bank keeps the earlier confirmation.
+ * Every save, whether of freshly imported questions or of edits to the stored
+ * bank, must be confirmed as reviewed by a person.
  */
 export async function saveBank(
   ctx: AppContext,
@@ -68,9 +68,7 @@ export async function saveBank(
 ): Promise<BankMetaDto> {
   return ctx.db.transaction(async (tx) => {
     const existing = await loadBank(tx, testId);
-    if ((mode.kind === "import" || !existing) && !mode.reviewConfirmed) {
-      throw badRequest("reviewNotConfirmed");
-    }
+    if (!mode.reviewConfirmed) throw badRequest("reviewNotConfirmed");
     const now = ctx.now().toISOString();
     const meta: BankMetaDto = {
       generator: bank.info.generator,
@@ -78,10 +76,7 @@ export async function saveBank(
       source: bank.info.source,
       importedAt: mode.kind === "import" ? now : (existing?.meta.importedAt ?? now),
       updatedAt: now,
-      reviewConfirmedAt:
-        mode.kind === "import" || (mode.reviewConfirmed && !existing?.meta.reviewConfirmedAt)
-          ? now
-          : (existing?.meta.reviewConfirmedAt ?? null),
+      reviewConfirmedAt: now,
     };
     await tx.run(
       `INSERT INTO banks (test_id, questions_json, meta_json, question_count, updated_at)

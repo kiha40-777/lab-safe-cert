@@ -3,22 +3,26 @@
 import { useId, useRef, useState } from "react";
 import { ErrorNotice } from "@/components/ErrorNotice";
 import { Notice } from "@/components/Notice";
-import { api, ApiClientError } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { TestConfig } from "@/lib/certification";
 import { useI18n } from "@/lib/i18n/context";
-import type { ValidationResultDto } from "@/lib/types";
+import type { QuestionDto, ValidationResultDto } from "@/lib/types";
+import type { DraftInfo } from "./BankEditor";
 import { IssueList } from "./IssueList";
 
-/** Upload or paste the question JSON, see what is wrong with it, and only then save it. */
+/**
+ * Upload or paste the question JSON and see what is wrong with it. Nothing is saved here:
+ * a file without errors is opened in step 3 (the editor), where it is reviewed, edited and saved.
+ */
 export function ImportSection({
   test,
-  existingCount,
-  onSaved,
+  hasDraft,
+  onOpen,
 }: {
   test: TestConfig;
-  /** Number of questions in the bank that a save would replace (0 when there is none). */
-  existingCount: number;
-  onSaved: () => Promise<void>;
+  /** Whether questions that were opened earlier are still waiting in step 3 (they would be replaced). */
+  hasDraft: boolean;
+  onOpen: (questions: QuestionDto[], info: DraftInfo) => void;
 }) {
   const { t } = useI18n();
   const id = useId();
@@ -26,24 +30,20 @@ export function ImportSection({
   const [text, setText] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
   const [result, setResult] = useState<ValidationResultDto | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
-  const [busy, setBusy] = useState<"check" | "save" | null>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const [saved, setSaved] = useState(false);
   const base = `/api/admin/tests/${test.id}/bank`;
 
   async function check(source: string) {
-    setBusy("check");
+    setBusy(true);
     setError(null);
-    setSaved(false);
-    setConfirmed(false);
     try {
       setResult(await api.post<ValidationResultDto>(`${base}/validate`, { text: source }));
     } catch (failure) {
       setResult(null);
       setError(failure);
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   }
 
@@ -55,23 +55,13 @@ export function ImportSection({
     if (fileInput.current) fileInput.current.value = "";
   }
 
-  async function save() {
-    setBusy("save");
-    setError(null);
-    try {
-      await api.put(base, { text, reviewConfirmed: confirmed });
-      setSaved(true);
-      setResult(null);
-      setText("");
-      setFileName(null);
-      setConfirmed(false);
-      await onSaved();
-    } catch (failure) {
-      if (failure instanceof ApiClientError && failure.validation) setResult(failure.validation);
-      setError(failure);
-    } finally {
-      setBusy(null);
-    }
+  function open() {
+    if (!result?.ok || !result.preview) return;
+    onOpen(result.preview, {
+      generator: result.meta?.generator ?? "",
+      generatedAt: result.meta?.generatedAt ?? "",
+      source: result.meta?.source ?? "",
+    });
   }
 
   const distribution = result?.summary
@@ -93,7 +83,7 @@ export function ImportSection({
           ref={fileInput}
           type="file"
           accept=".json,application/json,text/plain"
-          disabled={busy !== null}
+          disabled={busy}
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (file) void readFile(file);
@@ -113,20 +103,18 @@ export function ImportSection({
           onChange={(event) => {
             setText(event.target.value);
             setResult(null);
-            setSaved(false);
           }}
-          disabled={busy !== null}
+          disabled={busy}
         />
       </div>
 
       <div>
-        <button type="button" className="btn" disabled={busy !== null || text.trim() === ""} onClick={() => void check(text)}>
-          {busy === "check" ? t("admin.bank.checking") : t("admin.bank.check")}
+        <button type="button" className="btn" disabled={busy || text.trim() === ""} onClick={() => void check(text)}>
+          {busy ? t("admin.bank.checking") : t("admin.bank.check")}
         </button>
       </div>
 
       <ErrorNotice error={error} />
-      {saved ? <Notice kind="success">{t("admin.bank.imported")}</Notice> : null}
 
       {result ? (
         <div className="stack">
@@ -167,15 +155,10 @@ export function ImportSection({
                 </dl>
               ) : null}
 
-              {existingCount > 0 ? <Notice kind="warning">{t("admin.bank.replaceWarning", { count: existingCount })}</Notice> : null}
-
-              <label className="check">
-                <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
-                <span>{t("admin.bank.reviewConfirm")}</span>
-              </label>
+              {hasDraft ? <Notice kind="warning">{t("admin.bank.draftExists")}</Notice> : null}
               <div>
-                <button type="button" className="btn btn-primary" disabled={!confirmed || busy !== null} onClick={() => void save()}>
-                  {busy === "save" ? t("common.saving") : t("admin.bank.saveImport")}
+                <button type="button" className="btn btn-primary" disabled={busy} onClick={open}>
+                  {t("admin.bank.openInEditor")}
                 </button>
               </div>
             </div>

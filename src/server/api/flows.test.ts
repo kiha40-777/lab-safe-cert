@@ -164,7 +164,7 @@ describe("admin: question bank", () => {
     expect(stored.bank.questions).toHaveLength(60);
   });
 
-  it("stores edits made in the editor, with the same checks, and keeps the confirmation", async () => {
+  it("stores edits made in the editor, with the same checks, once the review is confirmed", async () => {
     const admin = await login("admin");
     await uploadBank(admin);
     const { bank } = await read<{ bank: BankDto }>(await admin.get("/api/admin/tests/participant/bank"));
@@ -172,20 +172,64 @@ describe("admin: question bank", () => {
     questions[0]!.text = "Edited question text";
     questions[0]!.explanation = "Added while editing";
     questions.push({ id: "", text: "A brand new question", choices: ["a1", "b1", "c1", "d1"], answerIndex: 2, explanation: "", source: "" });
+    const meta = { generator: "test-suite, edited by hand" };
 
-    const saved = await admin.put("/api/admin/tests/participant/bank", { questions, meta: { generator: "test-suite, edited by hand" } });
+    const unconfirmed = await admin.put("/api/admin/tests/participant/bank", { questions, meta });
+    expect(unconfirmed.status).toBe(400);
+    expect(await read(unconfirmed)).toEqual({ error: { code: "reviewNotConfirmed" } });
+    const untouched = await read<{ bank: BankDto }>(await admin.get("/api/admin/tests/participant/bank"));
+    expect(untouched.bank.questions).toHaveLength(60);
+
+    const saved = await admin.put("/api/admin/tests/participant/bank", { questions, meta, reviewConfirmed: true });
     expect(saved.status).toBe(200);
-    const meta = (await read<{ meta: BankDto["meta"] }>(saved)).meta;
-    expect(meta).toMatchObject({ generator: "test-suite, edited by hand", reviewConfirmedAt: bank.meta?.reviewConfirmedAt });
+    const savedMeta = (await read<{ meta: BankDto["meta"] }>(saved)).meta;
+    expect(savedMeta).toMatchObject({
+      generator: "test-suite, edited by hand",
+      importedAt: bank.meta?.importedAt,
+      reviewConfirmedAt: expect.any(String),
+    });
 
     const again = await read<{ bank: BankDto }>(await admin.get("/api/admin/tests/participant/bank"));
     expect(again.bank.questions).toHaveLength(61);
     expect(again.bank.questions[0]).toMatchObject({ text: "Edited question text", explanation: "Added while editing" });
     expect(again.bank.questions[60]).toMatchObject({ id: "q061", answerIndex: 2 });
+  });
 
-    questions[1]!.answerIndex = -1;
-    const invalid = await admin.put("/api/admin/tests/participant/bank", { questions });
-    expect(invalid.status).toBe(422);
+  it("saves questions that were checked from a file, edited in the editor and confirmed (no bank stored before)", async () => {
+    const admin = await login("admin");
+    const checked = await read<ValidationResultDto>(
+      await admin.post("/api/admin/tests/participant/bank/validate", { text: makeBankJson(60) }),
+    );
+    expect(checked.ok).toBe(true);
+    expect(await read(await admin.get("/api/admin/tests/participant/bank"))).toEqual({ bank: null });
+
+    const questions = checked.preview!.map((q) => ({ ...q }));
+    questions[1]!.text = "Corrected before saving";
+    const response = await admin.put("/api/admin/tests/participant/bank", {
+      questions,
+      meta: checked.meta,
+      imported: true,
+      reviewConfirmed: true,
+    });
+    expect(response.status).toBe(200);
+
+    const stored = await read<{ bank: BankDto }>(await admin.get("/api/admin/tests/participant/bank"));
+    expect(stored.bank.questions).toHaveLength(60);
+    expect(stored.bank.questions[1]).toMatchObject({ text: "Corrected before saving" });
+    expect(stored.bank.meta).toMatchObject({ generator: "test-suite", reviewConfirmedAt: expect.any(String) });
+  });
+
+  it("refuses edited questions that do not have exactly 4 choices", async () => {
+    const admin = await login("admin");
+    await uploadBank(admin);
+    const { bank } = await read<{ bank: BankDto }>(await admin.get("/api/admin/tests/participant/bank"));
+    const questions = bank.questions.map((q) => ({ ...q }));
+    questions[2]!.choices = [...questions[2]!.choices, "a fifth choice"];
+
+    const response = await admin.put("/api/admin/tests/participant/bank", { questions, reviewConfirmed: true });
+    expect(response.status).toBe(422);
+    const body = await read<{ validation: ValidationResultDto }>(response);
+    expect(body.validation.errors).toContainEqual({ code: "question.choicesNotExact", question: 3, params: { expected: 4, count: 5 } });
   });
 
   it("exports the stored bank as a file in the documented format", async () => {

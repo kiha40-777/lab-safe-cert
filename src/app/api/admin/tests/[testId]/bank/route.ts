@@ -18,9 +18,11 @@ export const GET = route<{ testId: string }>({ auth: "admin" }, async ({ ctx, pa
 });
 
 /**
- * Saves the question bank. Body: { text, reviewConfirmed } to import an uploaded file, or
- * { questions, meta?, reviewConfirmed? } to store questions edited in the editor.
- * The bank is checked again here; an invalid one is answered with 422 and the list of problems.
+ * Saves the question bank. Body: { text, reviewConfirmed } to import an uploaded file as it is, or
+ * { questions, meta?, imported?, reviewConfirmed } to store questions edited in the editor
+ * (`imported`: they came from an uploaded file that was opened in the editor and not yet saved).
+ * A person must have confirmed the review either way. The bank is checked again here; an invalid
+ * one is answered with 422 and the list of problems.
  */
 export const PUT = route<{ testId: string }>({ auth: "admin" }, async ({ req, ctx, params }) => {
   const test = requireTest(ctx.config, params.testId);
@@ -31,7 +33,7 @@ export const PUT = route<{ testId: string }>({ auth: "admin" }, async ({ req, ct
     return json({ error: { code: "bankInvalid" }, validation: toValidationDto(outcome) }, { status: 422 });
   }
   const meta = await saveBank(ctx, test.id, outcome.bank, {
-    kind: input.kind === "text" ? "import" : "edit",
+    kind: input.kind === "text" || optionalBoolean(body, "imported") === true ? "import" : "edit",
     reviewConfirmed: optionalBoolean(body, "reviewConfirmed") === true,
   });
   return json({ meta, warnings: outcome.warnings });

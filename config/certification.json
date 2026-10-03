@@ -3,8 +3,8 @@
   "roles": ["candidate", "participant", "supervisor"],
   "defaultRole": "candidate",
   "questionBank": {
-    "minChoices": 2,
-    "maxChoices": 6,
+    "minChoices": 4,
+    "maxChoices": 4,
     "preferredChoices": 4
   },
   "shuffle": {

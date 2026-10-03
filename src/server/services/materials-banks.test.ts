@@ -140,28 +140,33 @@ describe("question bank storage", () => {
     expect(await ctx.db.all("SELECT test_id FROM banks")).toHaveLength(1);
   });
 
-  it("keeps the review confirmation and import time when the bank is edited", async () => {
+  it("keeps the import time and renews the review confirmation when the bank is edited", async () => {
     const ctx = await makeTestContext();
     await saveBank(ctx, "participant", bank(), { kind: "import", reviewConfirmed: true });
     ctx.advance(60 * 60_000);
     const edited = bank();
     edited.info.generator = "AI model, corrected by hand";
-    const meta = await saveBank(ctx, "participant", edited, { kind: "edit", reviewConfirmed: false });
+    const meta = await saveBank(ctx, "participant", edited, { kind: "edit", reviewConfirmed: true });
     expect(meta).toMatchObject({
       generator: "AI model, corrected by hand",
       importedAt: "2030-01-01T00:00:00.000Z",
       updatedAt: "2030-01-01T01:00:00.000Z",
-      reviewConfirmedAt: "2030-01-01T00:00:00.000Z",
+      reviewConfirmedAt: "2030-01-01T01:00:00.000Z",
     });
   });
 
-  it("requires the review confirmation when a bank is first created by editing", async () => {
+  it("requires the review confirmation for every edit, also of an already confirmed bank", async () => {
     const ctx = await makeTestContext();
     await expect(saveBank(ctx, "participant", bank(), { kind: "edit", reviewConfirmed: false })).rejects.toMatchObject({
       code: "reviewNotConfirmed",
     });
-    const meta = await saveBank(ctx, "participant", bank(), { kind: "edit", reviewConfirmed: true });
-    expect(meta.reviewConfirmedAt).not.toBeNull();
+    await saveBank(ctx, "participant", bank(), { kind: "edit", reviewConfirmed: true });
+
+    const edited = bank(45);
+    await expect(saveBank(ctx, "participant", edited, { kind: "edit", reviewConfirmed: false })).rejects.toMatchObject({
+      code: "reviewNotConfirmed",
+    });
+    expect((await loadBank(ctx.db, "participant"))?.questions).toHaveLength(60);
   });
 
   it("lists question counts without loading the questions", async () => {

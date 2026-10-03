@@ -44,7 +44,7 @@ software; it covers the two tests and the record keeping.
 | Screen | What it does |
 |---|---|
 | **Test screen** (`/`) | Password lock → choose your name (or "Other" to type it) → the study PDF for your level → a test of randomly chosen, shuffled questions (30 of 60 by default) → score, verdict, and for every question the choices, your answer and the correct answer → the study PDF again → retake. An unfinished test resumes after a page reload. |
-| **Admin screen** (`/admin`) | Password lock → upload the study PDF of each test → copy a ready-made prompt for an external AI chat → import the question file (JSON) and get it checked with clear messages → preview, edit, add and delete questions → register team members (one by one or a whole list) → progress table with roles and scores, per-person history with every answer, CSV export → change passwords. |
+| **Admin screen** (`/admin`) | Password lock → upload the study PDF of each test → copy a ready-made prompt (English) for an external AI chat → import the question file (JSON) and get it checked with clear messages → review and edit the four-choice questions, confirm the review, save → register team members (one by one or a whole list) → progress table with roles and scores, per-person history with every answer, CSV export → change passwords. |
 | **Both** | Interface language switch (English / 日本語; more languages are one file each). Works on phones (large tap targets), keyboard-operable, light and dark mode. |
 
 Design points that matter for a certification test:
@@ -87,8 +87,9 @@ to any AI service, from the server or from the browser.
 
 **Safeguards built into the software:**
 
-- The import is refused unless the administrator ticks that *a person has checked every question and its correct
-  answer against the study material*; the moment of that confirmation is stored.
+- Questions are not saved unless the administrator ticks, after reviewing and editing them, that *a person has
+  checked every question and its correct answer against the study material*; this is asked for every save, and the
+  moment of that confirmation is stored.
 - The file may say which AI model or tool made it (`meta.generator`). This is stored and shown in the admin
   screen, so it stays visible which questions were machine-drafted.
 - The checker reports errors (for example a numeric answer, duplicate choices, too few questions) and warnings for
@@ -202,11 +203,11 @@ image does, and answered correctly; see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
    2. **Ask an AI to draft the questions**: copy the prompt, open an AI chat, attach the same PDF, paste the
       prompt, and save the JSON that the AI answers with. (Or write the question file yourself; the format is in
       [docs/QUESTION_FORMAT.md](docs/QUESTION_FORMAT.md).)
-   3. **Import the questions**: upload or paste the JSON. Read the messages, fix the file if it reports errors,
-      then tick the confirmation and save. The confirmation means that *you checked every question and its correct
-      answer against the study material*. Please do.
+   3. **Import the questions**: upload or paste the JSON. Read the messages and fix the file if it reports errors
+      (every question must have exactly four choices). Nothing is saved yet; the checked file is opened in the next step.
    4. **Review and edit**: skim the list (correct answers are shown), open a question to fix a text or the correct
-      answer, then save.
+      answer, then tick the confirmation and save. The confirmation means that *you checked every question and its
+      correct answer against the study material*. Please do.
 4. Repeat for the *Supervisor Certification Test*.
 5. Give the address of the test screen (for example `http://192.168.1.23:3000`) to your team.
 

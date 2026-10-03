@@ -72,11 +72,12 @@ order, with the choices in random order too. At least 30 are needed. (Both numbe
 [DEVELOPMENT.md](DEVELOPMENT.md).)
 
 **Step 1: draft with an AI (optional but recommended).** The card *Ask an AI to draft the questions* contains a ready
-prompt. Choose the language of the prompt and the language you want the questions in, press *Copy*, open an AI chat, attach
-the *same PDF*, paste the prompt and send it. Save the AI's answer (a JSON text) in a file or keep it in the chat.
+prompt (always written in English). Choose the language you want the questions in, press *Copy*, open an AI chat,
+attach the *same PDF*, paste the prompt and send it. Save the AI's answer (a JSON text) in a file or keep it in the chat.
 This app never contacts an AI itself. You can also write the question file yourself.
 
 **Step 2: import.** In *Import the questions*, choose the file or paste the text, and press *Check the questions*.
+Nothing is saved at this point.
 
 - It accepts what AI chats usually produce: a text with a ` ```json ` code block, or with a sentence before/after the
   JSON (you get a note that the extra text was ignored; make sure nothing important was cut off).
@@ -86,16 +87,19 @@ This app never contacts an AI itself. You can also write the question file yours
   above", a choice that refers to another choice by letter (choices are shuffled, so it will confuse people),
   one answer letter being used far too often, two identical questions.
 - When the file is fine you see how many questions there are, how the correct answers are spread over A, B, C, D,
-  and who made it (the AI name if the file says so).
+  and who made it (the AI name if the file says so). Press *Open in step 3 to review and edit*.
 
-**Step 3: confirm and save.** Tick *A person has checked every question and its correct answer against the study
-material* and press *Save as the question bank*. This is the important step: **AI drafts contain mistakes**. Please do
-check. Saving replaces the current bank (finished results are not affected).
+**Step 3: review, edit, confirm and save.** The card *Review and edit the questions* lists all questions with their
+correct answer. Questions that come from a file are marked as *not saved yet*. Open a question to change the text, the
+four choices, the correct one, the explanation shown after the test, and the source (page or section). Every
+question has exactly four choices (the choices cannot be added or removed). *Add a question*, *Delete this question*.
 
-**Step 4: review and edit.** The card *Review and edit the questions* lists all questions with their correct answer.
-Open a question to change the text, the choices (2 to 6), the correct one, the explanation shown after the test, and the
-source (page or section). *Add a question*, *Delete this question*, then *Save changes* (the bar at the bottom stays
-visible). *Download as JSON* saves the bank as a file in the same format (a good way to keep a copy or move it to
+When you are done, tick *A person has checked every question and its correct answer against the study material* (the bar
+at the bottom stays visible) and press *Save as the question bank* (or *Save changes* for a bank that was saved
+before). This is the important step: **AI drafts contain mistakes**. Please do check. The confirmation is asked
+again for every save, and it is cleared when you change anything after ticking it. Saving a file replaces the current
+bank (finished results are not affected); *Discard these questions* drops the unsaved file instead.
+*Download as JSON* saves the stored bank as a file in the same format (a good way to keep a copy or move it to
 another installation).
 
 A short review checklist:

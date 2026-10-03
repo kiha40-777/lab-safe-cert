@@ -47,7 +47,7 @@ The texts below are placeholders. A real file has as many questions as your test
 | `meta.source` | optional | Which document the questions are based on. |
 | `questions` | **yes** | The list of questions. (A file that is only a list, without the surrounding object, is also accepted, with a note.) |
 | `questions[].question` | **yes** | The question text, 1 to 1000 characters. Line breaks are kept. |
-| `questions[].choices` | **yes** | A list of texts. Between 2 and 6 choices (the limits come from `config/certification.json`; 4 is the usual number and other counts only give a warning). Each 1 to 500 characters, no two the same (ignoring case and width). |
+| `questions[].choices` | **yes** | A list of texts: **exactly 4 choices** (every question is a four-choice question; the number comes from `questionBank` in `config/certification.json`, see [DEVELOPMENT.md](DEVELOPMENT.md)). Each 1 to 500 characters, no two the same (ignoring case and width). |
 | `questions[].answer` | **yes** | The **letter** of the correct choice: `"A"` is the first item of `choices`, `"B"` the second, and so on. Small letters and forms like `"B)"` are accepted. **Numbers are refused**, see below. |
 | `questions[].id` | optional | A unique text (or number), up to 64 characters. Missing ids become `q001`, `q002`, ... by position. Two questions with the same id are an error. |
 | `questions[].explanation` | optional | Shown to the person after the test, and in the admin screen. Up to 1000 characters. |
@@ -92,7 +92,8 @@ Messages are shown in the interface language; each has a code. **Errors** must b
 | `question.textMissing` / `question.textTooLong` | Question text empty / over 1000 characters. | Fix the text. |
 | `question.choicesMissing` | No `choices` list. | Add it. |
 | `question.choiceEmpty` / `question.choiceTooLong` | A choice is empty, not text, or over 500 characters. | Fix it. |
-| `question.choicesTooFew` / `question.choicesTooMany` | Fewer than 2 or more than 6 choices. | Adjust the number of choices. |
+| `question.choicesNotExact` | The question does not have exactly 4 choices. | Give it four choices. |
+| `question.choicesTooFew` / `question.choicesTooMany` | Fewer / more choices than `questionBank.minChoices` / `maxChoices` allow (only when those two differ; by default both are 4, so you get `question.choicesNotExact`). | Adjust the number of choices. |
 | `question.choicesDuplicate` | Two choices are the same. | Rewrite one. |
 | `answer.missing` | No correct answer. | Add `"answer": "A"` (or the right letter). |
 | `answer.isNumber` | The answer is a number. | Use the letter instead. |
@@ -109,7 +110,7 @@ Messages are shown in the interface language; each has a code. **Errors** must b
 |---|---|
 | `input.extraTextIgnored` | There was text before/after the JSON (typical for chat AIs); it was ignored. Check that the JSON is complete. |
 | `question.textShort` | A question of less than 5 characters. |
-| `question.choiceCountDiffers` | A question has a different number of choices than usual (default 4). |
+| `question.choiceCountDiffers` | A question has a different number of choices than `questionBank.preferredChoices` (only possible when the limits allow a range; by default exactly 4 are required). |
 | `question.refersToChoices`, `choice.refersToOthers` | The text refers to other choices by letter/number; shuffling breaks that. |
 | `choice.allOfTheAbove` | A choice like "all of the above" / 「上記のすべて」. |
 | `bank.sizeDiffers` | The number of questions differs from the expected size (default 60). The test still works. |

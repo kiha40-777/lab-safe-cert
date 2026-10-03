@@ -108,10 +108,15 @@ describe("validateBankText: accepted input", () => {
     expect(result.warnings).toContainEqual({ code: "bank.sizeDiffers", params: { count: 45, expected: 60 } });
   });
 
-  it("warns when a question does not have the usual number of choices", () => {
-    const result = validateBankText(makeBankJson(60, 3), rules);
+  it("warns when a question does not have the usual number of choices, if the limits allow other counts", () => {
+    const flexible = { ...rules, minChoices: 2, maxChoices: 6 };
+    const result = validateBankText(makeBankJson(60, 3), flexible);
     expect(result.errors).toEqual([]);
     expect(codes(result.warnings)).toContain("question.choiceCountDiffers");
+  });
+
+  it("is configured so that every question has exactly 4 choices", () => {
+    expect(rules).toMatchObject({ minChoices: 4, maxChoices: 4, preferredChoices: 4 });
   });
 });
 
@@ -176,17 +181,39 @@ describe("validateBankText: rejected input", () => {
     expect(result.errors).toContainEqual({ code: "question.choicesMissing", question: 2 });
   });
 
-  it("rejects too few, too many, empty and duplicate choices", () => {
+  it("requires exactly 4 choices: not fewer and not more", () => {
+    const text = bankWith(60, (qs) => {
+      qs[0]!.choices = ["only one"];
+      qs[0]!.answer = "A";
+      qs[1]!.choices = ["1", "2", "3", "4", "5"];
+      qs[2]!.choices = ["1", "2", "3"];
+      qs[2]!.answer = "A";
+    });
+    const result = validateBankText(text, rules);
+    expect(result.errors).toContainEqual({ code: "question.choicesNotExact", question: 1, params: { expected: 4, count: 1 } });
+    expect(result.errors).toContainEqual({ code: "question.choicesNotExact", question: 2, params: { expected: 4, count: 5 } });
+    expect(result.errors).toContainEqual({ code: "question.choicesNotExact", question: 3, params: { expected: 4, count: 3 } });
+    expect(result.bank).toBeNull();
+  });
+
+  it("rejects too few and too many choices when the limits allow a range", () => {
+    const flexible = { ...rules, minChoices: 2, maxChoices: 6 };
     const text = bankWith(60, (qs) => {
       qs[0]!.choices = ["only one"];
       qs[0]!.answer = "A";
       qs[1]!.choices = ["1", "2", "3", "4", "5", "6", "7"];
+    });
+    const result = validateBankText(text, flexible);
+    expect(result.errors).toContainEqual({ code: "question.choicesTooFew", question: 1, params: { min: 2 } });
+    expect(result.errors).toContainEqual({ code: "question.choicesTooMany", question: 2, params: { max: 6 } });
+  });
+
+  it("rejects empty and duplicate choices", () => {
+    const text = bankWith(60, (qs) => {
       qs[2]!.choices = ["a", "", "c", "d"];
       qs[3]!.choices = ["same", "Same ", "x", "y"];
     });
     const result = validateBankText(text, rules);
-    expect(result.errors).toContainEqual({ code: "question.choicesTooFew", question: 1, params: { min: 2 } });
-    expect(result.errors).toContainEqual({ code: "question.choicesTooMany", question: 2, params: { max: 6 } });
     expect(result.errors).toContainEqual({ code: "question.choiceEmpty", question: 3, params: { choice: "B" } });
     expect(result.errors).toContainEqual({
       code: "question.choicesDuplicate",

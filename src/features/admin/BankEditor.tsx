@@ -9,73 +9,140 @@ import type { TestConfig } from "@/lib/certification";
 import { certification } from "@/lib/config";
 import { useLoad } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n/context";
-import type { BankDto, QuestionDto, ValidationResultDto } from "@/lib/types";
+import type { BankDto, BankMetaDto, QuestionDto, ValidationResultDto } from "@/lib/types";
 import styles from "./BankEditor.module.css";
 import { IssueList } from "./IssueList";
 
 const LETTERS = "ABCDEFGH";
 const normalize = (text: string) => text.normalize("NFKC").toLowerCase();
 
-interface Info {
+export interface DraftInfo {
   generator: string;
   generatedAt: string;
   source: string;
 }
 
-/** The stored question bank: preview with the correct answers, and editing. */
-export function BankEditor({ test, onChanged }: { test: TestConfig; onChanged: () => Promise<void> }) {
+/** Questions from an uploaded file that were opened here for review (step 2) and are not saved yet. */
+export interface Draft {
+  /** Changes with every file that is opened, so the editor starts over with the new questions. */
+  serial: number;
+  questions: QuestionDto[];
+  info: DraftInfo;
+}
+
+type Saved = "import" | "edit";
+
+/**
+ * Step 3: the questions are reviewed and edited here, either an opened file (`draft`) or the stored
+ * bank. They are only saved after a person confirms that every question and answer was checked.
+ */
+export function BankEditor({
+  test,
+  draft,
+  existingCount,
+  onChanged,
+  onDraftSaved,
+  onDraftDiscarded,
+}: {
+  test: TestConfig;
+  draft: Draft | null;
+  /** Number of questions in the stored bank (0 when there is none); a saved draft replaces them. */
+  existingCount: number;
+  onChanged: () => Promise<void>;
+  onDraftSaved: () => void;
+  onDraftDiscarded: () => void;
+}) {
   const { t } = useI18n();
   const id = useId();
   const loaded = useLoad(() => api.get<{ bank: BankDto | null }>(`/api/admin/tests/${test.id}/bank`));
   // Kept here (not in the editor) because the editor is rebuilt after every save.
-  const [justSaved, setJustSaved] = useState(false);
+  const [justSaved, setJustSaved] = useState<Saved | null>(null);
+
+  async function afterSave(kind: Saved) {
+    await loaded.reload();
+    await onChanged();
+    setJustSaved(kind);
+  }
 
   return (
     <section className="card stack" aria-labelledby={`${id}-title`}>
       <h2 id={`${id}-title`}>{t("admin.bank.currentTitle")}</h2>
-      {loaded.loading ? <Loading /> : null}
-      <ErrorNotice error={loaded.error} />
-      {loaded.data ? (
-        loaded.data.bank ? (
-          <EditorBody
-            key={loaded.data.bank.meta?.updatedAt ?? "bank"}
-            test={test}
-            bank={loaded.data.bank}
-            justSaved={justSaved}
-            onSaved={async () => {
-              await loaded.reload();
-              await onChanged();
-              setJustSaved(true);
-            }}
-          />
-        ) : (
-          <p className="muted">{t("admin.bank.none")}</p>
-        )
-      ) : null}
+      {draft ? (
+        <EditorBody
+          key={`draft-${draft.serial}`}
+          test={test}
+          questions={draft.questions}
+          info={draft.info}
+          meta={null}
+          isDraft
+          existingCount={existingCount}
+          justSaved={null}
+          onSaved={async () => {
+            await afterSave("import");
+            onDraftSaved();
+          }}
+          onDiscardDraft={() => {
+            setJustSaved(null);
+            onDraftDiscarded();
+          }}
+        />
+      ) : (
+        <>
+          {loaded.loading ? <Loading /> : null}
+          <ErrorNotice error={loaded.error} />
+          {loaded.data ? (
+            loaded.data.bank ? (
+              <EditorBody
+                key={loaded.data.bank.meta?.updatedAt ?? "bank"}
+                test={test}
+                questions={loaded.data.bank.questions}
+                info={{
+                  generator: loaded.data.bank.meta?.generator ?? "",
+                  generatedAt: loaded.data.bank.meta?.generatedAt ?? "",
+                  source: loaded.data.bank.meta?.source ?? "",
+                }}
+                meta={loaded.data.bank.meta}
+                isDraft={false}
+                existingCount={existingCount}
+                justSaved={justSaved}
+                onSaved={() => afterSave("edit")}
+                onDiscardDraft={onDraftDiscarded}
+              />
+            ) : (
+              <p className="muted">{t("admin.bank.none")}</p>
+            )
+          ) : null}
+        </>
+      )}
     </section>
   );
 }
 
 function EditorBody({
   test,
-  bank,
+  questions: initialQuestions,
+  info: initialInfo,
+  meta,
+  isDraft,
+  existingCount,
   justSaved,
   onSaved,
+  onDiscardDraft,
 }: {
   test: TestConfig;
-  bank: BankDto;
-  justSaved: boolean;
+  questions: QuestionDto[];
+  info: DraftInfo;
+  /** Details of the stored bank (null for a draft, which is not stored yet). */
+  meta: BankMetaDto | null;
+  isDraft: boolean;
+  existingCount: number;
+  justSaved: Saved | null;
   onSaved: () => Promise<void>;
+  onDiscardDraft: () => void;
 }) {
   const { t, formatDateTime } = useI18n();
-  const meta = bank.meta;
-  const initialInfo: Info = {
-    generator: meta?.generator ?? "",
-    generatedAt: meta?.generatedAt ?? "",
-    source: meta?.source ?? "",
-  };
-  const [questions, setQuestions] = useState<QuestionDto[]>(bank.questions);
-  const [info, setInfo] = useState<Info>(initialInfo);
+  const [questions, setQuestions] = useState<QuestionDto[]>(initialQuestions);
+  const [info, setInfo] = useState<DraftInfo>(initialInfo);
   const [opened, setOpened] = useState<ReadonlySet<number>>(new Set());
   const [filter, setFilter] = useState("");
   const [showAnswers, setShowAnswers] = useState(true);
@@ -83,11 +150,15 @@ function EditorBody({
   const [error, setError] = useState<unknown>(null);
   const [problems, setProblems] = useState<ValidationResultDto | null>(null);
 
-  const dirty = useMemo(
-    () => JSON.stringify([questions, info]) !== JSON.stringify([bank.questions, initialInfo]),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [questions, info, bank],
-  );
+  const [baseline] = useState(() => JSON.stringify([initialQuestions, initialInfo]));
+  const snapshot = useMemo(() => JSON.stringify([questions, info]), [questions, info]);
+  const changed = snapshot !== baseline;
+  // An opened file is never saved yet, even before the first edit.
+  const dirty = isDraft || changed;
+
+  // The confirmation belongs to the questions as they were when it was given: any later edit asks again.
+  const [confirmedSnapshot, setConfirmedSnapshot] = useState<string | null>(null);
+  const confirmed = confirmedSnapshot === snapshot;
 
   const update = (index: number, patch: Partial<QuestionDto>) => {
     setQuestions((list) => list.map((q, i) => (i === index ? { ...q, ...patch } : q)));
@@ -97,9 +168,6 @@ function EditorBody({
     setQuestions((list) =>
       list.map((q, i) => (i === index ? { ...q, choices: q.choices.map((c, k) => (k === choiceIndex ? value : c)) } : q)),
     );
-
-  const min = certification.questionBank.minChoices;
-  const max = certification.questionBank.maxChoices;
 
   function addQuestion() {
     setQuestions((list) => [
@@ -130,6 +198,8 @@ function EditorBody({
       await api.put(`/api/admin/tests/${test.id}/bank`, {
         questions,
         meta: { generator: info.generator, generatedAt: info.generatedAt, source: info.source },
+        imported: isDraft,
+        reviewConfirmed: confirmed,
       });
       await onSaved();
     } catch (failure) {
@@ -148,8 +218,14 @@ function EditorBody({
   return (
     <div className="stack">
       <div className="stack-sm">
+        {isDraft ? (
+          <Notice kind="warning">
+            <p>{t("admin.bank.draftBanner")}</p>
+            {existingCount > 0 ? <p>{t("admin.bank.replaceWarning", { count: existingCount })}</p> : null}
+          </Notice>
+        ) : null}
         <p>
-          {t("admin.bank.info", { count: questions.length, date: meta ? formatDateTime(meta.updatedAt) : "—" })}
+          {meta ? t("admin.bank.info", { count: questions.length, date: formatDateTime(meta.updatedAt) }) : t("admin.bank.draftInfo", { count: questions.length })}
           {meta?.reviewConfirmedAt ? (
             <span className="muted"> · {t("admin.bank.reviewedAt", { date: formatDateTime(meta.reviewConfirmedAt) })}</span>
           ) : null}
@@ -205,9 +281,11 @@ function EditorBody({
           <input type="checkbox" checked={showAnswers} onChange={(e) => setShowAnswers(e.target.checked)} />
           <span>{t("admin.bank.showAnswers")}</span>
         </label>
-        <a className="btn btn-sm" href={`/api/admin/tests/${test.id}/bank/export`} download>
-          {t("admin.bank.export")}
-        </a>
+        {isDraft ? null : (
+          <a className="btn btn-sm" href={`/api/admin/tests/${test.id}/bank/export`} download>
+            {t("admin.bank.export")}
+          </a>
+        )}
       </div>
 
       {visible.length === 0 ? <p className="muted">{t("admin.bank.noMatch")}</p> : null}
@@ -277,28 +355,6 @@ function EditorBody({
                 </div>
               </fieldset>
 
-              <div className="row-wrap">
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  disabled={question.choices.length >= max}
-                  onClick={() => update(index, { choices: [...question.choices, ""] })}
-                >
-                  {t("admin.bank.addChoice")}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  disabled={question.choices.length <= min}
-                  onClick={() => {
-                    const choices = question.choices.slice(0, -1);
-                    update(index, { choices, answerIndex: Math.min(question.answerIndex, choices.length - 1) });
-                  }}
-                >
-                  {t("admin.bank.removeChoice")}
-                </button>
-              </div>
-
               <div className="field">
                 <label htmlFor={`q${index}-explanation`}>{t("admin.bank.explanation")}</label>
                 <textarea
@@ -336,30 +392,47 @@ function EditorBody({
       ) : (
         <ErrorNotice error={error} />
       )}
-      {justSaved && !dirty ? <Notice kind="success">{t("admin.bank.changesSaved")}</Notice> : null}
+      {justSaved && !dirty ? (
+        <Notice kind="success">{t(justSaved === "import" ? "admin.bank.imported" : "admin.bank.changesSaved")}</Notice>
+      ) : null}
 
       <div className={styles.stickyBar}>
+        {dirty ? (
+          <label className={`check ${styles.confirm}`}>
+            <input
+              type="checkbox"
+              checked={confirmed}
+              disabled={saving}
+              onChange={(e) => setConfirmedSnapshot(e.target.checked ? snapshot : null)}
+            />
+            <span>{t("admin.bank.reviewConfirm")}</span>
+          </label>
+        ) : null}
         <button type="button" className="btn" onClick={addQuestion}>
           {t("admin.bank.addQuestion")}
         </button>
         <span className="spacer" />
-        {dirty ? <span className="small muted">{t("admin.bank.unsaved")}</span> : null}
+        {changed ? <span className="small muted">{t("admin.bank.unsaved")}</span> : null}
         <button
           type="button"
           className="btn"
           disabled={!dirty || saving}
           onClick={() => {
-            setQuestions(bank.questions);
+            if (isDraft) {
+              onDiscardDraft();
+              return;
+            }
+            setQuestions(initialQuestions);
             setInfo(initialInfo);
             setProblems(null);
             setError(null);
             setOpened(new Set());
           }}
         >
-          {t("admin.bank.discard")}
+          {isDraft ? t("admin.bank.discardDraft") : t("admin.bank.discard")}
         </button>
-        <button type="button" className="btn btn-primary" disabled={!dirty || saving} onClick={() => void save()}>
-          {saving ? t("common.saving") : t("admin.bank.saveChanges")}
+        <button type="button" className="btn btn-primary" disabled={!dirty || !confirmed || saving} onClick={() => void save()}>
+          {saving ? t("common.saving") : isDraft ? t("admin.bank.saveImport") : t("admin.bank.saveChanges")}
         </button>
       </div>
     </div>

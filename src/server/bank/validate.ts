@@ -192,7 +192,13 @@ export function validateBank(
         }
       }
       if (choicesOk) {
-        if (list.length < rules.minChoices) {
+        if (rules.minChoices === rules.maxChoices && list.length !== rules.minChoices) {
+          errors.push({
+            code: "question.choicesNotExact",
+            question: n,
+            params: { expected: rules.minChoices, count: list.length },
+          });
+        } else if (list.length < rules.minChoices) {
           errors.push({ code: "question.choicesTooFew", question: n, params: { min: rules.minChoices } });
         } else if (list.length > rules.maxChoices) {
           errors.push({ code: "question.choicesTooMany", question: n, params: { max: rules.maxChoices } });

@@ -214,6 +214,7 @@
       "choicesMissing": "選択肢の一覧がありません。",
       "choiceEmpty": "選択肢 {choice} が空か、文章ではありません。",
       "choiceTooLong": "選択肢 {choice} が {max} 文字を超えています。",
+      "choicesNotExact": "選択肢はちょうど {expected} 個必要です（この問題は {count} 個です）。",
       "choicesTooFew": "選択肢は少なくとも {min} 個必要です。",
       "choicesTooMany": "選択肢は最大 {max} 個までです。",
       "choicesDuplicate": "選択肢 {a} と {b} が同じです。",
@@ -317,7 +318,7 @@
     },
     "tests": {
       "title": "テストと問題",
-      "intro": "テストごとに、勉強用 PDF をアップロードし、AI に問題案を作らせ、取り込んで形式を確認し、人が内容を確認してください。"
+      "intro": "テストごとに、勉強用 PDF をアップロードし、AI に問題案を作らせ、ファイルを取り込んだうえで、人が問題を確認・編集してください。確認したことを回答すると、はじめて保存されます。"
     },
     "material": {
       "title": "勉強用資料（PDF）",
@@ -334,7 +335,6 @@
       "title": "1. AI に問題案を作らせる",
       "help": "AI チャット（ChatGPT、Claude、Gemini など）に勉強用 PDF を添付し、下のプロンプトを貼り付けて、AI が返した JSON を保存してください。このアプリ自身は AI に接続しません。",
       "warning": "AI は間違えることがあります。事実を作り上げたり、誤った選択肢を正解にしたりすることがあります。テストで使う前に、人が全問を PDF と照らして確認してください。",
-      "promptLanguage": "プロンプトの言語",
       "questionLanguage": "問題の言語",
       "sameAsPdf": "PDF と同じ言語",
       "info": "このプロンプトは、選択肢 {choices} 個の問題を {count} 問作るよう依頼します。",
@@ -343,7 +343,7 @@
     },
     "bank": {
       "importTitle": "2. 問題を取り込む（JSON）",
-      "importHelp": "JSON ファイルをアップロードするか、テキストを貼り付けてください。先に形式を確認し、確認するまで保存はされません。",
+      "importHelp": "JSON ファイルをアップロードするか、テキストを貼り付けて、形式を確認してください。この段階ではまだ保存されません。問題がなければ手順 3 で開き、そこで問題を確認・編集して保存します。",
       "chooseFile": "JSON ファイルを選ぶ",
       "pasteLabel": "…または JSON をここに貼り付け",
       "check": "問題を確認する",
@@ -359,6 +359,11 @@
       "madeOn": "日付",
       "madeFrom": "元の資料",
       "reviewConfirm": "人が全問について、問題と正解を勉強用資料と照らして確認しました。",
+      "openInEditor": "手順 3 で確認・編集する",
+      "draftExists": "手順 3 で開いている未保存の問題は、これに置き換わります。",
+      "draftBanner": "これらの問題はまだ保存されていません。下で確認・編集し、確認したことにチェックして保存すると、問題バンクになります。",
+      "draftInfo": "{count} 問 · 未保存",
+      "discardDraft": "これらの問題を破棄",
       "saveImport": "問題バンクとして保存",
       "replaceWarning": "現在の問題バンク（{count} 問）が置き換わります。すでに受験された結果には影響しません。",
       "imported": "問題バンクを保存しました。",
@@ -380,8 +385,6 @@
       "source": "出典（PDF のページや節）",
       "addQuestion": "問題を追加",
       "deleteQuestion": "この問題を削除",
-      "addChoice": "選択肢を追加",
-      "removeChoice": "最後の選択肢を削除",
       "saveChanges": "変更を保存",
       "discard": "変更を破棄",
       "unsaved": "保存されていない変更があります。",

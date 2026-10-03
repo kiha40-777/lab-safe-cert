@@ -71,3 +71,8 @@
   border-top: 1px solid var(--border);
   border-radius: 0 0 var(--radius-outer) var(--radius-outer);
 }
+
+/* The review confirmation sits on its own row above the buttons. */
+.confirm {
+  flex: 1 1 100%;
+}

@@ -214,6 +214,7 @@
       "choicesMissing": "The list of choices is missing.",
       "choiceEmpty": "Choice {choice} is empty or not text.",
       "choiceTooLong": "Choice {choice} is longer than {max} characters.",
+      "choicesNotExact": "Exactly {expected} choices are needed (this question has {count}).",
       "choicesTooFew": "At least {min} choices are needed.",
       "choicesTooMany": "At most {max} choices are allowed.",
       "choicesDuplicate": "Choices {a} and {b} are the same.",
@@ -317,7 +318,7 @@
     },
     "tests": {
       "title": "Tests and questions",
-      "intro": "For each test: upload the study PDF, ask an AI to draft questions from it, import and check them, then review them yourself."
+      "intro": "For each test: upload the study PDF, ask an AI to draft questions from it, import the file, then review and edit the questions yourself. They are saved only after you confirm the review."
     },
     "material": {
       "title": "Study material (PDF)",
@@ -334,7 +335,6 @@
       "title": "1. Ask an AI to draft the questions",
       "help": "Attach the study PDF to a chat with an AI (for example ChatGPT, Claude or Gemini), paste the prompt below, and save the JSON the AI returns. This app never contacts an AI itself.",
       "warning": "An AI can make mistakes: it may invent facts or mark a wrong answer as correct. A person must check every question against the PDF before the test is used.",
-      "promptLanguage": "Language of the prompt",
       "questionLanguage": "Language of the questions",
       "sameAsPdf": "Same as the PDF",
       "info": "The prompt asks for {count} questions with {choices} choices each.",
@@ -343,7 +343,7 @@
     },
     "bank": {
       "importTitle": "2. Import the questions (JSON)",
-      "importHelp": "Upload the JSON file or paste its text. It is checked first; nothing is saved until you confirm.",
+      "importHelp": "Upload the JSON file or paste its text, then check it. Nothing is saved yet: a file without errors is opened in step 3, where you review and edit the questions and save them.",
       "chooseFile": "Choose a JSON file",
       "pasteLabel": "…or paste the JSON here",
       "check": "Check the questions",
@@ -359,6 +359,11 @@
       "madeOn": "Date",
       "madeFrom": "Source document",
       "reviewConfirm": "A person has checked every question and its correct answer against the study material.",
+      "openInEditor": "Open in step 3 to review and edit",
+      "draftExists": "Questions that are already open in step 3 and not saved yet will be replaced.",
+      "draftBanner": "These questions are not saved yet. Review and edit them below; they become the question bank only after you confirm the review and save.",
+      "draftInfo": "{count} questions · not saved yet",
+      "discardDraft": "Discard these questions",
       "saveImport": "Save as the question bank",
       "replaceWarning": "This replaces the current question bank ({count} questions). Results of tests that were already taken are not affected.",
       "imported": "The question bank was saved.",
@@ -380,8 +385,6 @@
       "source": "Source (page or section of the PDF)",
       "addQuestion": "Add a question",
       "deleteQuestion": "Delete this question",
-      "addChoice": "Add a choice",
-      "removeChoice": "Remove the last choice",
       "saveChanges": "Save changes",
       "discard": "Discard changes",
       "unsaved": "You have unsaved changes.",

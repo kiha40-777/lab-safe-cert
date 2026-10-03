@@ -7,27 +7,26 @@ import { certification } from "@/lib/config";
 import { copyText } from "@/lib/clipboard";
 import { useI18n } from "@/lib/i18n/context";
 import { lookup } from "@/lib/i18n/messages";
-import { type PromptLanguage, type QuestionLanguage, buildPrompt } from "@/lib/prompt/build";
+import { type QuestionLanguage, buildPrompt } from "@/lib/prompt/build";
 
 /** The ready-to-paste prompt for an external AI chat, together with the study PDF. */
 export function PromptSection({ test }: { test: TestConfig }) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const id = useId();
   const area = useRef<HTMLTextAreaElement>(null);
-  const [promptLanguage, setPromptLanguage] = useState<PromptLanguage>(locale === "ja" ? "ja" : "en");
   const [questionLanguage, setQuestionLanguage] = useState<QuestionLanguage>("same");
   const [copied, setCopied] = useState<"idle" | "yes" | "no">("idle");
 
   const prompt = useMemo(
     () =>
       buildPrompt({
-        promptLanguage,
         questionLanguage,
-        testName: lookup(promptLanguage, `tests.${test.id}.name`) ?? test.id,
+        // The prompt is always English, so the test is named in English too.
+        testName: lookup("en", `tests.${test.id}.name`) ?? test.id,
         questionCount: test.expectedBankSize,
         choiceCount: certification.questionBank.preferredChoices,
       }),
-    [promptLanguage, questionLanguage, test],
+    [questionLanguage, test],
   );
 
   async function copy() {
@@ -42,22 +41,13 @@ export function PromptSection({ test }: { test: TestConfig }) {
       <p className="muted">{t("admin.prompt.help")}</p>
       <Notice kind="warning">{t("admin.prompt.warning")}</Notice>
 
-      <div className="row-wrap">
-        <div className="field">
-          <label htmlFor={`${id}-plang`}>{t("admin.prompt.promptLanguage")}</label>
-          <select id={`${id}-plang`} value={promptLanguage} onChange={(e) => setPromptLanguage(e.target.value as PromptLanguage)}>
-            <option value="en">English</option>
-            <option value="ja">日本語</option>
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor={`${id}-qlang`}>{t("admin.prompt.questionLanguage")}</label>
-          <select id={`${id}-qlang`} value={questionLanguage} onChange={(e) => setQuestionLanguage(e.target.value as QuestionLanguage)}>
-            <option value="same">{t("admin.prompt.sameAsPdf")}</option>
-            <option value="ja">日本語</option>
-            <option value="en">English</option>
-          </select>
-        </div>
+      <div className="field">
+        <label htmlFor={`${id}-qlang`}>{t("admin.prompt.questionLanguage")}</label>
+        <select id={`${id}-qlang`} value={questionLanguage} onChange={(e) => setQuestionLanguage(e.target.value as QuestionLanguage)}>
+          <option value="same">{t("admin.prompt.sameAsPdf")}</option>
+          <option value="ja">日本語</option>
+          <option value="en">English</option>
+        </select>
       </div>
 
       <p className="hint">

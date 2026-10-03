@@ -153,7 +153,7 @@ login, "A" = admin login (two independent cookies). State-changing requests need
 | `GET /api/admin/members/{id}/attempts`, `GET /api/admin/attempts/{id}` | A | history and full detail |
 | `PUT`/`GET`/`DELETE /api/admin/tests/{testId}/material` | A | study PDF (raw body, `X-Filename` header) |
 | `POST .../tests/{testId}/bank/validate` | A | `{ text }` or `{ questions }`: check only |
-| `GET`/`PUT .../tests/{testId}/bank` | A | read; save (`{ text, reviewConfirmed }` or `{ questions, meta }`); invalid → `422` with the problem list |
+| `GET`/`PUT .../tests/{testId}/bank` | A | read; save (`{ text, reviewConfirmed }` or `{ questions, meta, imported?, reviewConfirmed }`; every save needs `reviewConfirmed: true`, otherwise `400 reviewNotConfirmed`; `imported` marks questions that came from an uploaded file); invalid → `422` with the problem list |
 | `GET .../tests/{testId}/bank/export` | A | download in the documented file format |
 | `GET /api/admin/settings`, `POST .../settings/password` | A | which passwords are set; change (`{ kind, currentPassword, newPassword }` / `{ kind: "participant", generate: true }`) |
 | `GET /api/admin/export?type=results\|attempts` | A | CSV download |
@@ -206,7 +206,7 @@ Edit `config/certification.json`:
 
 - `tests[].questionsPerTest` (drawn per attempt), `tests[].expectedBankSize` (a warning if the bank differs),
   `tests[].passRate` (0 < rate ≤ 1; 1 = all correct; required = ceil(rate × questions)),
-- `questionBank.minChoices` / `maxChoices` / `preferredChoices`, `shuffle.questions` / `shuffle.choices`.
+- `questionBank.minChoices` / `maxChoices` / `preferredChoices` (4 / 4 / 4 by default: every question has exactly four choices; the editor cannot add or remove choices, so set the same number in all three if you change it), `shuffle.questions` / `shuffle.choices`.
 
 The file is validated at start-up and in a test. Start the app again afterwards (the start script rebuilds by itself; or `npm run build`). Existing results keep the pass
 mark they were graded with (`attempts.required_score`).
@@ -229,8 +229,8 @@ To *rename* a level, only its text in `src/locales/*.json` changes; the id in th
    (`xx: { label: "Name in that language", messages: xx satisfies Messages }`).
 3. `npm run check`: the compiler and the tests report missing keys and placeholder mismatches. `DEFAULT_LANG=xx` works.
 
-The AI prompt exists in English and Japanese only (`src/lib/prompt/build.ts`); other languages can be added there
-(`PromptLanguage`, one function).
+The AI prompt is written in English only, whatever language the screen uses (`src/lib/prompt/build.ts`); the admin only
+chooses the language the AI writes the questions in.
 
 ### Change the AI prompt
 
