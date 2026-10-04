@@ -26,7 +26,7 @@ async function setup(ctx?: Ctx) {
   const c = ctx ?? (await makeTestContext());
   const test = findTest(c.config, "participant");
   if (!test) throw new Error("participant test missing");
-  const outcome = validateBankText(makeBankJson(60), rulesFor(c.config, test));
+  const outcome = validateBankText(makeBankJson(60), rulesFor(c.config, test, 0));
   if (!outcome.bank) throw new Error("test bank invalid");
   await saveBank(c, "participant", outcome.bank, { kind: "import", reviewConfirmed: true });
   const member = await createMember(c, { name: "Test Person" });
@@ -290,7 +290,7 @@ describe("climbing the whole ladder", () => {
     const { ctx, member } = await setup();
     const supervisorTest = findTest(ctx.config, "supervisor");
     if (!supervisorTest) throw new Error("supervisor test missing");
-    const outcome = validateBankText(makeBankJson(60), rulesFor(ctx.config, supervisorTest));
+    const outcome = validateBankText(makeBankJson(60), rulesFor(ctx.config, supervisorTest, 0));
     await saveBank(ctx, "supervisor", outcome.bank as Bank, { kind: "import", reviewConfirmed: true });
 
     const first = await startAttempt(ctx, member.id, "participant");

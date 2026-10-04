@@ -15,6 +15,21 @@ export interface TestConfig {
   expectedBankSize: number;
   /** Share of correct answers needed to pass, 0 < passRate <= 1 (1 = all correct). */
   passRate: number;
+  /**
+   * Present only on a test that can have case-study questions. They are part of the
+   * `questionsPerTest` questions of an attempt (a test of 30 with 3 case studies asks 27 ordinary
+   * questions and then 3 case studies), are drawn separately from the bank and always appear last.
+   * The numbers are the defaults; the admin screen can change `perTest` (and the number the
+   * AI is asked to write) without editing this file.
+   */
+  caseStudy?: CaseStudyConfig;
+}
+
+export interface CaseStudyConfig {
+  /** How many case-study questions the AI prompt asks for (0 = none). */
+  bankSize: number;
+  /** How many of the questions of one attempt are case studies (0 = none; at most `questionsPerTest`). */
+  perTest: number;
 }
 
 export interface CertificationConfig {
@@ -34,6 +49,9 @@ export interface CertificationConfig {
 }
 
 const ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/;
+
+/** Upper limit of case-study questions per test (in the bank and in one attempt). */
+export const MAX_CASE_STUDY = 100;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -112,7 +130,7 @@ export function validateCertificationConfig(input: unknown): CertificationConfig
         continue;
       }
       if (tests.some((t) => t.id === id)) fail(`Duplicate test id "${id}".`);
-      const { requiresRole, grantsRole, questionsPerTest, expectedBankSize, passRate } = raw;
+      const { requiresRole, grantsRole, questionsPerTest, expectedBankSize, passRate, caseStudy: rawCaseStudy } = raw;
       if (typeof requiresRole !== "string" || !roles.includes(requiresRole)) {
         fail(`${where}.requiresRole must be one of "roles".`);
         continue;
@@ -134,7 +152,33 @@ export function validateCertificationConfig(input: unknown): CertificationConfig
         fail(`${where}.passRate must be a number greater than 0 and at most 1.`);
         continue;
       }
-      tests.push({ id, requiresRole, grantsRole, questionsPerTest, expectedBankSize, passRate });
+      let caseStudy: CaseStudyConfig | undefined;
+      if (rawCaseStudy !== undefined) {
+        const bankSize = isRecord(rawCaseStudy) ? rawCaseStudy.bankSize : undefined;
+        const perTest = isRecord(rawCaseStudy) ? rawCaseStudy.perTest : undefined;
+        if (!isIntInRange(bankSize, 0, MAX_CASE_STUDY) || !isIntInRange(perTest, 0, MAX_CASE_STUDY)) {
+          fail(`${where}.caseStudy must be { "bankSize": n, "perTest": n } with integers from 0 to ${MAX_CASE_STUDY}.`);
+          continue;
+        }
+        if (perTest > bankSize) {
+          fail(`${where}.caseStudy.perTest must not be larger than caseStudy.bankSize.`);
+          continue;
+        }
+        if (perTest > questionsPerTest) {
+          fail(`${where}.caseStudy.perTest must not be larger than questionsPerTest (case studies are part of the questions of a test).`);
+          continue;
+        }
+        caseStudy = { bankSize, perTest };
+      }
+      tests.push({
+        id,
+        requiresRole,
+        grantsRole,
+        questionsPerTest,
+        expectedBankSize,
+        passRate,
+        ...(caseStudy ? { caseStudy } : {}),
+      });
     }
 
     // Each role can lead to at most one test, and the ladder must not loop.

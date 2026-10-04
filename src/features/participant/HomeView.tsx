@@ -94,10 +94,17 @@ export function HomeView({
               <h2>{t("home.step2")}</h2>
               <h3>{testName(nextTest.id)}</h3>
               <p>
-                {t("home.testInfo", {
-                  count: nextTest.questionsPerTest,
-                  required: requiredScore(nextTest.questionsPerTest, nextTest.passRate),
-                })}
+                {nextInfo.caseStudyCount > 0
+                  ? t("home.testInfoCaseStudy", {
+                      count: nextInfo.questionCount,
+                      standard: nextInfo.questionCount - nextInfo.caseStudyCount,
+                      caseStudy: nextInfo.caseStudyCount,
+                      required: requiredScore(nextInfo.questionCount, nextTest.passRate),
+                    })
+                  : t("home.testInfo", {
+                      count: nextInfo.questionCount,
+                      required: requiredScore(nextInfo.questionCount, nextTest.passRate),
+                    })}
               </p>
               {!nextInfo.ready ? <Notice kind="warning">{t("home.notReady")}</Notice> : null}
               <ErrorNotice error={error} />

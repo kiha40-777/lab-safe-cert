@@ -22,6 +22,12 @@ export function optionalString(obj: Obj, field: string, max = 1000): string | un
   return obj[field] === undefined ? undefined : string(obj, field, max);
 }
 
+export function integer(obj: Obj, field: string, min: number, max: number): number {
+  const value = obj[field];
+  if (typeof value !== "number" || !Number.isInteger(value) || value < min || value > max) throw invalid(field);
+  return value;
+}
+
 export function optionalBoolean(obj: Obj, field: string): boolean | undefined {
   const value = obj[field];
   if (value === undefined) return undefined;

@@ -102,6 +102,22 @@ bank (finished results are not affected); *Discard these questions* drops the un
 *Download as JSON* (at the bottom of the card) saves the stored bank as a file in the same format (a good way to keep a copy or move it to
 another installation).
 
+**Case studies (Supervisor Certification Test).** Some of the questions of this test can be *case-study* questions: a
+situation is described in the question text and the person chooses what to do (still four choices, one correct). In
+the card *Case-study questions* you set two numbers (both can be 0, which turns case studies off):
+
+- *Case-study questions for the AI to write*: only used in the prompt of step 1, which then asks the AI for that many
+  case studies in addition to the ordinary questions. Ask for more than you show per test, so that tests differ.
+- *Case-study questions in each test*: saved on the server. They are **part of the 30 questions of a test**: with 3, a
+  test asks 27 ordinary questions and then 3 case studies. They are chosen at random but are **always asked last,
+  together**, and count towards the pass mark like any other question (with a pass mark of "all correct", every case
+  study must be right too). While the bank holds fewer case studies than this number, or too few ordinary questions for
+  the rest (27 in the example), people cannot start the test.
+
+Test takers see no difference between a case study and another question. The AI marks case studies with
+`"type": "case_study"`; in the review step they carry a *Case study* label, and the type of a question can be changed
+(the *Type* field of an opened question).
+
 A short review checklist:
 
 - Can each question be answered from the study PDF alone? Is exactly one choice correct?

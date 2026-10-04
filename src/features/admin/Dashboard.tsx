@@ -93,8 +93,7 @@ export function Dashboard({ overview, goto }: { overview: AdminOverview; goto: (
         </section>
 
         {overview.tests.map((info) => {
-          const test = tests.find((x) => x.id === info.testId);
-          const ready = info.questionCount >= (test?.questionsPerTest ?? 1);
+          const ready = info.ready;
           return (
             <section key={info.testId} className="card stack-sm" aria-labelledby={`test-${info.testId}`}>
               <h2 id={`test-${info.testId}`} style={{ fontSize: "1rem" }}>
@@ -108,6 +107,7 @@ export function Dashboard({ overview, goto }: { overview: AdminOverview; goto: (
                   {info.bank ? t("common.questions", { count: info.questionCount }) : t("admin.dashboard.bankMissing")}
                 </span>
               </div>
+              {info.caseStudy ? <p className="small muted">{t("admin.caseStudy.available", { count: info.caseStudy.available })}</p> : null}
               <p className="small muted">{info.material ? t("admin.dashboard.pdfUploaded") : t("admin.dashboard.pdfMissing")}</p>
               <div>
                 <button type="button" className="btn btn-sm" onClick={() => goto(`tests/${info.testId}`)}>

@@ -117,11 +117,11 @@ SQLite, created by `src/server/db/migrations.ts` (numbered, never edit an applie
 | Table | Content |
 |---|---|
 | `members` | `id`, `name`, `name_key` (unique, normalised: NFKC, no spaces, lower case), `role`, `self_registered`, timestamps |
-| `banks` | one row per test: `questions_json` (normalised questions), `meta_json` (generator, dates, review confirmation), `question_count` |
+| `banks` | one row per test: `questions_json` (normalised questions, each with a `kind`: `standard` or `case_study`), `meta_json` (generator, dates, review confirmation), `question_count` (all), `case_study_count` |
 | `materials` | one row per test: file name, size, sha-256, the PDF itself in `data` (BLOB) |
 | `attempts` | `member_id`, `test_id`, `status` (`in_progress`/`submitted`/`abandoned`), `questions_json` (**snapshot** with correct answers, in the order shown), `answers_json`, `score`, `total`, `required_score`, `passed`, `promoted_to`, timestamps |
 | `sessions` | `token_hash` (SHA-256 of the cookie token), `scope` (`participant`/`admin`), `member_id`, `expires_at` |
-| `settings` | key/value: `admin_password_hash`, `participant_password_hash` (scrypt) |
+| `settings` | key/value: `admin_password_hash`, `participant_password_hash` (scrypt), `case_study_per_test:<testId>` (how many questions of an attempt are case studies, set in the admin screen) |
 | `schema_migrations` | which migrations were applied |
 
 `test_id` and `role` are plain text ids from `config/certification.json`; there are no foreign keys to them, so changing the
@@ -152,6 +152,7 @@ login, "A" = admin login (two independent cookies). State-changing requests need
 | `PATCH`/`DELETE /api/admin/members/{id}` | A | edit name/role (also clears "typed their own name"), delete with results |
 | `GET /api/admin/members/{id}/attempts`, `GET /api/admin/attempts/{id}` | A | history and full detail |
 | `PUT`/`GET`/`DELETE /api/admin/tests/{testId}/material` | A | study PDF (raw body, `X-Filename` header) |
+| `PUT .../tests/{testId}/case-study` | A | `{ perTest }` (0 to `questionsPerTest`): how many of the questions of one attempt are case studies; `404 noCaseStudy` for a test without them |
 | `POST .../tests/{testId}/bank/validate` | A | `{ text }` or `{ questions }`: check only |
 | `GET`/`PUT .../tests/{testId}/bank` | A | read; save (`{ text, reviewConfirmed }` or `{ questions, meta, imported?, reviewConfirmed }`; every save needs `reviewConfirmed: true`, otherwise `400 reviewNotConfirmed`; `imported` marks questions that came from an uploaded file); invalid → `422` with the problem list |
 | `GET .../tests/{testId}/bank/export` | A | download in the documented file format |
@@ -204,6 +205,11 @@ Not automated: the browser UI. It was checked by hand (see the README). A good n
 
 Edit `config/certification.json`:
 
+- `tests[].caseStudy` (optional, `{ "bankSize": n, "perTest": n }`, 0–100): the test can have case-study questions. They are **part of**
+  `questionsPerTest` (3 of 30 = 27 ordinary questions, then 3 case studies, drawn separately and always asked last), so
+  `perTest` ≤ `questionsPerTest`. `bankSize` is how many the prompt asks the AI for, `perTest` how many of the questions of one attempt
+  are case studies; both are only defaults, the admin screen overrides them (`perTest` is stored in `settings`). Shipped as 0/0 on the
+  supervisor test (off),
 - `tests[].questionsPerTest` (drawn per attempt), `tests[].expectedBankSize` (a warning if the bank differs),
   `tests[].passRate` (0 < rate ≤ 1; 1 = all correct; required = ceil(rate × questions)),
 - `questionBank.minChoices` / `maxChoices` / `preferredChoices` (4 / 4 / 4 by default: every question has exactly four choices; the editor cannot add or remove choices, so set the same number in all three if you change it), `shuffle.questions` / `shuffle.choices`.

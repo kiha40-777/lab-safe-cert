@@ -54,6 +54,10 @@ export interface ParticipantTestInfo {
   testId: string;
   /** The question bank holds enough questions for one attempt. */
   ready: boolean;
+  /** Number of questions in one attempt (case-study questions included). */
+  questionCount: number;
+  /** How many of them are case-study questions (always the last ones). */
+  caseStudyCount: number;
   material: MaterialInfo | null;
 }
 
@@ -142,11 +146,24 @@ export interface BankMetaDto {
   reviewConfirmedAt: string | null;
 }
 
+/** The case-study setting of a test that can have such questions. */
+export interface CaseStudyInfo {
+  /** How many of the questions of one attempt are case studies (0 = none). */
+  perTest: number;
+  /** How many case-study questions the stored bank holds. */
+  available: number;
+}
+
 export interface TestAdminInfo {
   testId: string;
+  /** All questions of the stored bank, case-study questions included. */
   questionCount: number;
+  /** The stored bank holds enough questions of each kind for one attempt. */
+  ready: boolean;
   bank: BankMetaDto | null;
   material: MaterialInfo | null;
+  /** null when the test has no case-study questions at all (see `caseStudy` in config/certification.json). */
+  caseStudy: CaseStudyInfo | null;
 }
 
 export interface AdminOverview {
@@ -162,9 +179,13 @@ export interface AdminSettings {
 
 // ---------------------------------------------------------- question bank
 
+/** An ordinary question, or a case study (a situation described in the question text; always asked last). */
+export type QuestionKind = "standard" | "case_study";
+
 /** A question as edited in the admin screen (optional texts are empty strings). */
 export interface QuestionDto {
   id: string;
+  kind: QuestionKind;
   text: string;
   choices: string[];
   answerIndex: number;
@@ -186,7 +207,10 @@ export interface Issue {
 }
 
 export interface ValidationSummary {
+  /** All questions of the file, case-study questions included. */
   questionCount: number;
+  /** How many of them are case-study questions. */
+  caseStudyCount: number;
   /** number of choices -> how many questions have that many */
   choiceCounts: Record<string, number>;
   /** answer letter -> how many questions have it as the correct answer */

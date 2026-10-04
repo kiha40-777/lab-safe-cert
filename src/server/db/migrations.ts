@@ -68,6 +68,13 @@ export const migrations: Migration[] = [
        )`,
     ],
   },
+  {
+    id: "002_case_study_count",
+    statements: [
+      // how many of the bank's questions are case studies (banks saved earlier have none)
+      `ALTER TABLE banks ADD COLUMN case_study_count INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
 ];
 
 /** Applies every migration that has not been applied yet (each in its own transaction). */
