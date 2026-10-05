@@ -45,7 +45,7 @@ software; it covers the two tests and the record keeping.
 |---|---|
 | **Test screen** (`/`) | Password lock → choose your name (or "Other" to type it) → the study PDF for your level → a test of randomly chosen, shuffled questions (30 of 60 by default) → score, verdict, and for every question the choices, your answer and the correct answer → the study PDF again → retake. An unfinished test resumes after a page reload. |
 | **Admin screen** (`/admin`) | Password lock → upload the study PDF of each test → copy a ready-made prompt (English) for an external AI chat → import the question file (JSON) and get it checked with clear messages → review and edit the four-choice questions, confirm the review, save → register team members (one by one or a whole list) → progress table with roles and scores, per-person history with every answer, CSV export → change passwords. |
-| **Both** | Interface language switch (English / 日本語; more languages are one file each). Works on phones (large tap targets), keyboard-operable, light and dark mode. |
+| **Both** | Interface language switch (English / 日本語; more languages are one file each). Works on phones (large tap targets), keyboard-operable, dark colour scheme. |
 
 Design points that matter for a certification test:
 

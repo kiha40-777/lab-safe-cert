@@ -41,9 +41,11 @@ export function LoginForm({
 
   return (
     <main id="main" className="container">
-      <form className="card card-narrow stack" onSubmit={submit}>
-        <h1>{admin ? t("admin.login.title") : t("login.title")}</h1>
-        <p className="muted">{admin ? t("admin.login.description") : t("login.description")}</p>
+      <form className="auth stack" onSubmit={submit}>
+        <div className="auth-head">
+          <h1>{admin ? t("admin.login.title") : t("login.title")}</h1>
+          <p className="muted">{admin ? t("admin.login.description") : t("login.description")}</p>
+        </div>
         {!passwordSet ? <Notice kind="warning">{t("login.notSet")}</Notice> : null}
         <div className="field">
           <label htmlFor={`${id}-password`}>{admin ? t("admin.login.password") : t("login.password")}</label>
@@ -60,13 +62,13 @@ export function LoginForm({
           />
         </div>
         <ErrorNotice error={error} />
-        <button type="submit" className="btn btn-primary" disabled={busy || !passwordSet || password === ""}>
+        <button type="submit" className="btn btn-primary btn-block" disabled={busy || !passwordSet || password === ""}>
           {admin ? t("admin.login.submit") : t("login.submit")}
         </button>
         {admin ? <p className="hint">{t("admin.login.hint")}</p> : null}
-        <a href={admin ? "/" : "/admin"} className="small">
-          {admin ? t("admin.login.participantLink") : t("login.adminLink")}
-        </a>
+        <p className="auth-foot">
+          <a href={admin ? "/" : "/admin"}>{admin ? t("admin.login.participantLink") : t("login.adminLink")}</a>
+        </p>
       </form>
     </main>
   );

@@ -1,21 +1,26 @@
 /* The question on the left, the jump-to-question panel on the right (under it on a narrow screen). */
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 15.5rem;
-  gap: var(--gap);
+  grid-template-columns: minmax(0, 1fr) 16rem;
+  gap: 3rem;
   align-items: start;
+}
+
+.main {
+  max-width: 44rem;
 }
 
 .side {
   position: sticky;
-  top: 4.5rem;
-  max-height: calc(100vh - 5.5rem);
+  top: 5rem;
+  max-height: calc(100vh - 6rem);
   overflow-y: auto;
 }
 
 @media (max-width: 800px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
   }
   .side {
     position: static;
@@ -24,19 +29,28 @@
   }
 }
 
+.heading {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.heading:focus {
+  outline: none;
+}
+
 .question {
   border: 0;
   padding: 0;
-  margin: 0;
+  margin: 0.5rem 0 0;
   min-width: 0;
 }
 
 .legend {
   padding: 0;
-  margin-bottom: 0.9rem;
-  font-size: 1.15rem;
+  margin-bottom: 1.5rem;
+  font-size: 1.1875rem;
   font-weight: 700;
-  line-height: 1.5;
+  line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -44,31 +58,43 @@
 .choices {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.5rem;
 }
 
 .choice {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.875rem;
   align-items: flex-start;
-  padding: 0.75rem 0.9rem;
-  min-height: 48px;
-  border: 2px solid var(--border);
-  border-radius: var(--radius-inner);
+  padding: 0.875rem 1rem;
+  min-height: 52px;
   background: var(--surface);
   cursor: pointer;
+  transition:
+    background-color var(--transition),
+    color var(--transition);
 }
 .choice:hover {
-  border-color: var(--primary);
+  background: var(--surface-2);
 }
+/* The chosen answer becomes a solid crimson block. */
 .choice.selected {
-  border-color: var(--primary);
-  background: var(--primary-soft);
+  background: var(--crimson);
+  color: #fff;
+}
+.choice.selected input {
+  accent-color: #fff;
+}
+.choice input {
+  margin-top: 0.2rem;
 }
 
 .letter {
-  font-weight: 700;
-  min-width: 1.4rem;
+  font-weight: 900;
+  min-width: 1.25rem;
+  color: var(--muted);
+}
+.selected .letter {
+  color: #fff;
 }
 
 .choiceText {
@@ -77,39 +103,61 @@
   overflow-wrap: anywhere;
 }
 
+.pager {
+  margin-top: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+/* A thin bar; the number of answered questions is also written next to it. */
 .progress {
+  appearance: none;
   width: 100%;
-  height: 0.6rem;
-  accent-color: var(--primary);
+  height: 6px;
+  border: 0;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.progress::-webkit-progress-bar {
+  background: var(--surface-2);
+}
+.progress::-webkit-progress-value {
+  background: var(--text);
+  transition: width var(--transition);
+}
+.progress::-moz-progress-bar {
+  background: var(--text);
 }
 
 .nav {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
-  gap: 0.4rem;
+  grid-template-columns: repeat(auto-fill, minmax(2.5rem, 1fr));
+  gap: 4px;
 }
 
 .navButton {
-  min-height: 44px;
-  border: 2px solid var(--border);
-  border-radius: var(--radius-inner);
-  background: var(--surface);
-  color: var(--text);
+  min-height: 40px;
+  border: 0;
+  background: var(--surface-2);
+  color: var(--subtle);
   font: inherit;
+  font-size: 0.8125rem;
   font-weight: 700;
   cursor: pointer;
   font-variant-numeric: tabular-nums;
+  transition:
+    background-color var(--transition),
+    color var(--transition);
+}
+.navButton:hover {
+  background: var(--surface-3);
+  color: var(--text);
 }
 .navButton.answered {
-  background: var(--primary-soft);
-  border-color: var(--primary);
+  background: #444;
+  color: var(--text);
 }
 .navButton.current {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: var(--primary-contrast);
-}
-
-.heading:focus {
-  outline: none;
+  background: var(--crimson);
+  color: #fff;
 }

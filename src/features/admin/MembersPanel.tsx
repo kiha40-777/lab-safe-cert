@@ -67,22 +67,21 @@ export function MembersPanel({
 
   return (
     <div className="stack-lg">
-      <div className="grid-cards" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
-        <AddMemberForm onAdded={reload} />
-        <BulkAddForm onAdded={reload} />
-      </div>
-
-      <section className="stack">
-        <div className="row-wrap">
-          <h2>{t("admin.members.title")}</h2>
-          <span className="spacer" />
-          {reviewOnly ? (
+      <header className="page-head">
+        <div className="page-head-text">
+          <h1>{t("admin.members.title")}</h1>
+          <p className="page-sub">{t("admin.members.roleHelp")}</p>
+        </div>
+        {reviewOnly ? (
+          <div className="page-head-actions">
             <button type="button" className="btn btn-sm" onClick={() => goto("members")}>
               {t("common.all")}
             </button>
-          ) : null}
-        </div>
-        <p className="hint">{t("admin.members.roleHelp")}</p>
+          </div>
+        ) : null}
+      </header>
+
+      <section className="stack" aria-label={t("admin.members.title")}>
         <ErrorNotice error={error} />
 
         {shown.length === 0 ? (
@@ -122,7 +121,7 @@ export function MembersPanel({
                         value={member.role}
                         disabled={busyId === member.id}
                         onChange={(event) => void change(member, { role: event.target.value })}
-                        style={{ width: "auto" }}
+                        style={{ width: "auto", minHeight: 32, paddingBlock: "0.25rem" }}
                       >
                         {certification.roles.map((role) => (
                           <option key={role} value={role}>
@@ -148,6 +147,11 @@ export function MembersPanel({
           </div>
         )}
       </section>
+
+      <div className="sections">
+        <AddMemberForm onAdded={reload} />
+        <BulkAddForm onAdded={reload} />
+      </div>
 
       <EditMemberDialog
         member={editing}
@@ -197,27 +201,31 @@ function AddMemberForm({ onAdded }: { onAdded: () => Promise<void> }) {
   }
 
   return (
-    <form className="card stack" onSubmit={submit}>
-      <h2>{t("admin.members.addTitle")}</h2>
-      <div className="field">
-        <label htmlFor={`${id}-name`}>{t("admin.members.name")}</label>
-        <input id={`${id}-name`} type="text" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} disabled={busy} />
+    <form className="section section-split" onSubmit={submit}>
+      <div className="section-intro">
+        <h2>{t("admin.members.addTitle")}</h2>
       </div>
-      <div className="field">
-        <label htmlFor={`${id}-role`}>{t("admin.members.role")}</label>
-        <select id={`${id}-role`} value={role} onChange={(e) => setRole(e.target.value)} disabled={busy}>
-          {certification.roles.map((r) => (
-            <option key={r} value={r}>
-              {t.dynamic("roles", r)}
-            </option>
-          ))}
-        </select>
-      </div>
-      <ErrorNotice error={error} />
-      <div>
-        <button type="submit" className="btn btn-primary" disabled={busy || name.trim() === ""}>
-          {t("admin.members.addButton")}
-        </button>
+      <div className="stack">
+        <div className="field">
+          <label htmlFor={`${id}-name`}>{t("admin.members.name")}</label>
+          <input id={`${id}-name`} type="text" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} disabled={busy} />
+        </div>
+        <div className="field">
+          <label htmlFor={`${id}-role`}>{t("admin.members.role")}</label>
+          <select id={`${id}-role`} value={role} onChange={(e) => setRole(e.target.value)} disabled={busy}>
+            {certification.roles.map((r) => (
+              <option key={r} value={r}>
+                {t.dynamic("roles", r)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <ErrorNotice error={error} />
+        <div>
+          <button type="submit" className="btn btn-primary" disabled={busy || name.trim() === ""}>
+            {t("admin.members.addButton")}
+          </button>
+        </div>
       </div>
     </form>
   );
@@ -250,44 +258,48 @@ function BulkAddForm({ onAdded }: { onAdded: () => Promise<void> }) {
   }
 
   return (
-    <form className="card stack" onSubmit={submit}>
-      <h2>{t("admin.members.bulkTitle")}</h2>
-      <p className="hint">{t("admin.members.bulkHelp")}</p>
-      <div className="field">
-        <label htmlFor={`${id}-names`} className="visually-hidden">
-          {t("admin.members.bulkTitle")}
-        </label>
-        <textarea id={`${id}-names`} rows={5} value={text} onChange={(e) => setText(e.target.value)} disabled={busy} />
+    <form className="section section-split" onSubmit={submit}>
+      <div className="section-intro">
+        <h2>{t("admin.members.bulkTitle")}</h2>
+        <p>{t("admin.members.bulkHelp")}</p>
       </div>
-      <div className="field">
-        <label htmlFor={`${id}-role`}>{t("admin.members.role")}</label>
-        <select id={`${id}-role`} value={role} onChange={(e) => setRole(e.target.value)} disabled={busy}>
-          {certification.roles.map((r) => (
-            <option key={r} value={r}>
-              {t.dynamic("roles", r)}
-            </option>
-          ))}
-        </select>
-      </div>
-      <ErrorNotice error={error} />
-      {result ? (
-        <Notice kind={result.skipped.length > 0 ? "warning" : "success"}>
-          {t("admin.members.bulkResult", { created: result.created.length, skipped: result.skipped.length })}
-          {result.skipped.length > 0 ? (
-            <ul>
-              {result.skipped.map((s, i) => (
-                <li key={i}>
-                  {s.name} — {t(`admin.members.skipReason.${s.reason}`)}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </Notice>
-      ) : null}
-      <div>
-        <button type="submit" className="btn btn-primary" disabled={busy || text.trim() === ""}>
-          {t("admin.members.bulkButton")}
-        </button>
+      <div className="stack">
+        <div className="field">
+          <label htmlFor={`${id}-names`} className="visually-hidden">
+            {t("admin.members.bulkTitle")}
+          </label>
+          <textarea id={`${id}-names`} rows={5} value={text} onChange={(e) => setText(e.target.value)} disabled={busy} />
+        </div>
+        <div className="field">
+          <label htmlFor={`${id}-role`}>{t("admin.members.role")}</label>
+          <select id={`${id}-role`} value={role} onChange={(e) => setRole(e.target.value)} disabled={busy}>
+            {certification.roles.map((r) => (
+              <option key={r} value={r}>
+                {t.dynamic("roles", r)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <ErrorNotice error={error} />
+        {result ? (
+          <Notice kind={result.skipped.length > 0 ? "warning" : "success"}>
+            {t("admin.members.bulkResult", { created: result.created.length, skipped: result.skipped.length })}
+            {result.skipped.length > 0 ? (
+              <ul>
+                {result.skipped.map((s, i) => (
+                  <li key={i}>
+                    {s.name}: {t(`admin.members.skipReason.${s.reason}`)}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </Notice>
+        ) : null}
+        <div>
+          <button type="submit" className="btn btn-primary" disabled={busy || text.trim() === ""}>
+            {t("admin.members.bulkButton")}
+          </button>
+        </div>
       </div>
     </form>
   );

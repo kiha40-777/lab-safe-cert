@@ -42,9 +42,11 @@ export function IdentifyView({ onIdentified }: { onIdentified: () => void }) {
 
   return (
     <main id="main" className="container">
-      <form className="card card-narrow stack" onSubmit={submit}>
-        <h1>{t("identify.title")}</h1>
-        <p className="muted">{t("identify.description")}</p>
+      <form className="auth stack" onSubmit={submit}>
+        <div className="auth-head">
+          <h1>{t("identify.title")}</h1>
+          <p className="muted">{t("identify.description")}</p>
+        </div>
 
         {roster.loading ? <Loading /> : null}
         <ErrorNotice error={roster.error} />
@@ -82,7 +84,7 @@ export function IdentifyView({ onIdentified }: { onIdentified: () => void }) {
             ) : null}
 
             <ErrorNotice error={error} />
-            <button type="submit" className="btn btn-primary" disabled={busy || !canSubmit}>
+            <button type="submit" className="btn btn-primary btn-block" disabled={busy || !canSubmit}>
               {t("identify.submit")}
             </button>
           </>

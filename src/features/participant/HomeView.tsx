@@ -44,19 +44,18 @@ export function HomeView({
   return (
     <main id="main" className="container">
       <div className="stack-lg">
-        <section className="card stack-sm">
-          <div className="row-wrap">
-            <h1>{t("home.greeting", { name: home.member.name })}</h1>
-            <span className="spacer" />
-            <button type="button" className="link-button small" onClick={onSwitchUser}>
-              {t("home.notYou")}
-            </button>
+        <header className="page-head">
+          <div className="page-head-text">
+            <h1>{home.member.name}</h1>
+            <dl className="meta">
+              <dt>{t("home.yourRole")}</dt>
+              <dd>{t.dynamic("roles", home.member.role)}</dd>
+            </dl>
           </div>
-          <p>
-            <span className="muted">{t("home.yourRole")}: </span>
-            <span className="badge badge-info">{t.dynamic("roles", home.member.role)}</span>
-          </p>
-        </section>
+          <button type="button" className="link-button small" onClick={onSwitchUser}>
+            {t("home.notYou")}
+          </button>
+        </header>
 
         {home.activeAttempt ? (
           <Notice kind="info">
@@ -75,88 +74,103 @@ export function HomeView({
           </Notice>
         ) : null}
 
-        {nextTest && nextInfo ? (
-          <>
-            <section className="card stack">
-              <h2>{t("home.step1")}</h2>
-              <p className="muted">{t("home.materialFor", { test: testName(nextTest.id) })}</p>
-              {nextInfo.material ? (
-                <PdfViewer
-                  src={`/api/participant/materials/${nextTest.id}`}
-                  title={t("home.materialFor", { test: testName(nextTest.id) })}
-                />
-              ) : (
-                <Notice kind="info">{t("home.noMaterial")}</Notice>
-              )}
-            </section>
+        <div>
+          {nextTest && nextInfo ? (
+            <>
+              <section className="section">
+                <div className="section-head">
+                  <h2>{t("home.step1")}</h2>
+                  <p>{t("home.materialFor", { test: testName(nextTest.id) })}</p>
+                </div>
+                {nextInfo.material ? (
+                  <PdfViewer
+                    src={`/api/participant/materials/${nextTest.id}`}
+                    title={t("home.materialFor", { test: testName(nextTest.id) })}
+                  />
+                ) : (
+                  <Notice kind="info">{t("home.noMaterial")}</Notice>
+                )}
+              </section>
 
-            <section className="card stack">
-              <h2>{t("home.step2")}</h2>
-              <h3>{testName(nextTest.id)}</h3>
-              <p>
-                {t("home.testInfo", {
-                  count: nextTest.questionsPerTest,
-                  required: requiredScore(nextTest.questionsPerTest, nextTest.passRate),
-                })}
-              </p>
-              {!nextInfo.ready ? <Notice kind="warning">{t("home.notReady")}</Notice> : null}
-              <ErrorNotice error={error} />
-              <div>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={starting || !nextInfo.ready}
-                  onClick={() => void start(nextTest.id)}
-                >
-                  {starting ? t("home.starting") : t("home.start")}
-                </button>
+              <section className="section">
+                <div className="section-head">
+                  <h2>{t("home.step2")}</h2>
+                  <p>
+                    {testName(nextTest.id)}
+                    {" / "}
+                    {t("home.testInfo", {
+                      count: nextTest.questionsPerTest,
+                      required: requiredScore(nextTest.questionsPerTest, nextTest.passRate),
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={starting || !nextInfo.ready}
+                    onClick={() => void start(nextTest.id)}
+                  >
+                    {starting ? t("home.starting") : t("home.start")}
+                  </button>
+                </div>
+                {!nextInfo.ready ? <Notice kind="warning">{t("home.notReady")}</Notice> : null}
+                <ErrorNotice error={error} />
+              </section>
+            </>
+          ) : (
+            <section className="section">
+              <Notice kind="success">
+                <strong>{t("home.allDoneTitle")}</strong>
+                <p>{t("home.allDoneBody")}</p>
+              </Notice>
+              {home.tests
+                .filter((info) => info.material)
+                .map((info) => (
+                  <details key={info.testId}>
+                    <summary>{t("home.materialFor", { test: testName(info.testId) })}</summary>
+                    <div style={{ marginTop: "0.75rem" }}>
+                      <PdfViewer
+                        src={`/api/participant/materials/${info.testId}`}
+                        title={t("home.materialFor", { test: testName(info.testId) })}
+                      />
+                    </div>
+                  </details>
+                ))}
+            </section>
+          )}
+
+          {home.recentAttempts.length > 0 ? (
+            <section className="section">
+              <h2>{t("home.recent")}</h2>
+              <div className="table-wrap">
+                <table className="table">
+                  <tbody>
+                    {home.recentAttempts.map((attempt) => (
+                      <tr key={attempt.id}>
+                        <td className="nowrap">{attempt.submittedAt ? formatDateTime(attempt.submittedAt) : ""}</td>
+                        <td>{testName(attempt.testId)}</td>
+                        <td className="num">
+                          {attempt.score}/{attempt.total}
+                        </td>
+                        <td>
+                          <span className={`badge ${attempt.passed ? "badge-success" : "badge-danger"}`}>
+                            {attempt.passed ? t("home.passed") : t("home.failed")}
+                          </span>
+                        </td>
+                        <td className="num">
+                          <button type="button" className="link-button" onClick={() => onOpenResult(attempt.id)}>
+                            {t("home.viewResult")}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </section>
-          </>
-        ) : (
-          <section className="card stack">
-            <Notice kind="success">
-              <strong>{t("home.allDoneTitle")}</strong>
-              <p>{t("home.allDoneBody")}</p>
-            </Notice>
-            {home.tests
-              .filter((info) => info.material)
-              .map((info) => (
-                <details key={info.testId}>
-                  <summary>{t("home.materialFor", { test: testName(info.testId) })}</summary>
-                  <div style={{ marginTop: "0.75rem" }}>
-                    <PdfViewer
-                      src={`/api/participant/materials/${info.testId}`}
-                      title={t("home.materialFor", { test: testName(info.testId) })}
-                    />
-                  </div>
-                </details>
-              ))}
-          </section>
-        )}
-
-        {home.recentAttempts.length > 0 ? (
-          <section className="card stack-sm">
-            <h2>{t("home.recent")}</h2>
-            <ul className="stack-sm" style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {home.recentAttempts.map((attempt) => (
-                <li key={attempt.id} className="row-wrap">
-                  <span className={`badge ${attempt.passed ? "badge-success" : "badge-danger"}`}>
-                    {attempt.passed ? t("home.passed") : t("home.failed")}
-                  </span>
-                  <span>
-                    {testName(attempt.testId)} · {attempt.score}/{attempt.total}
-                  </span>
-                  <span className="muted small">{attempt.submittedAt ? formatDateTime(attempt.submittedAt) : ""}</span>
-                  <span className="spacer" />
-                  <button type="button" className="btn btn-sm" onClick={() => onOpenResult(attempt.id)}>
-                    {t("home.viewResult")}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
+          ) : null}
+        </div>
       </div>
     </main>
   );

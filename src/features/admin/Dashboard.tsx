@@ -64,6 +64,20 @@ export function Dashboard({ overview, goto }: { overview: AdminOverview; goto: (
 
   return (
     <div className="stack-lg">
+      <header className="page-head">
+        <div className="page-head-text">
+          <h1>{t("admin.dashboard.title")}</h1>
+        </div>
+        <div className="page-head-actions">
+          <a className="btn btn-sm" href="/api/admin/export?type=results" download>
+            {t("admin.dashboard.exportResults")}
+          </a>
+          <a className="btn btn-sm" href="/api/admin/export?type=attempts" download>
+            {t("admin.dashboard.exportAttempts")}
+          </a>
+        </div>
+      </header>
+
       {selfRegistered > 0 ? (
         <Notice kind="warning">
           <div className="row-wrap">
@@ -76,39 +90,40 @@ export function Dashboard({ overview, goto }: { overview: AdminOverview; goto: (
         </Notice>
       ) : null}
 
-      <div className="grid-cards">
-        <section className="card stack-sm" aria-labelledby="people-heading">
-          <h2 id="people-heading" style={{ fontSize: "1rem" }}>
-            {t("admin.dashboard.peopleByRole")}
-          </h2>
-          <ul style={{ listStyle: "none", margin: 0, padding: 0 }} className="stack-sm">
-            {certification.roles.map((role) => (
-              <li key={role} className="row">
-                <span>{t.dynamic("roles", role)}</span>
-                <span className="spacer" />
-                <strong>{t("common.people", { count: roleCount(role) })}</strong>
-              </li>
-            ))}
-          </ul>
-        </section>
+      <section aria-labelledby="people-heading" className="stack-sm">
+        <h2 id="people-heading" className="small muted">
+          {t("admin.dashboard.peopleByRole")}
+        </h2>
+        <div className="stats">
+          {certification.roles.map((role) => (
+            <div key={role} className="stat">
+              <span className="stat-label">{t.dynamic("roles", role)}</span>
+              <span className="stat-value">{t("common.people", { count: roleCount(role) })}</span>
+            </div>
+          ))}
+        </div>
+      </section>
 
+      <div className="stats">
         {overview.tests.map((info) => {
           const test = tests.find((x) => x.id === info.testId);
           const ready = info.questionCount >= (test?.questionsPerTest ?? 1);
           return (
-            <section key={info.testId} className="card stack-sm" aria-labelledby={`test-${info.testId}`}>
-              <h2 id={`test-${info.testId}`} style={{ fontSize: "1rem" }}>
-                {t.dynamic("tests", `${info.testId}.name`)}
-              </h2>
+            <section key={info.testId} className="stat" aria-labelledby={`test-${info.testId}`}>
               <div className="row-wrap">
+                <h2 id={`test-${info.testId}`} style={{ fontSize: "0.9375rem" }}>
+                  {t.dynamic("tests", `${info.testId}.name`)}
+                </h2>
+                <span className="spacer" />
                 <span className={`badge ${ready ? "badge-success" : "badge-warning"}`}>
                   {ready ? t("admin.dashboard.ready") : t("admin.dashboard.notReady")}
                 </span>
-                <span className="small muted">
-                  {info.bank ? t("common.questions", { count: info.questionCount }) : t("admin.dashboard.bankMissing")}
-                </span>
               </div>
-              <p className="small muted">{info.material ? t("admin.dashboard.pdfUploaded") : t("admin.dashboard.pdfMissing")}</p>
+              <p className="small muted">
+                {info.bank ? t("common.questions", { count: info.questionCount }) : t("admin.dashboard.bankMissing")}
+                {" / "}
+                {info.material ? t("admin.dashboard.pdfUploaded") : t("admin.dashboard.pdfMissing")}
+              </p>
               <div>
                 <button type="button" className="btn btn-sm" onClick={() => goto(`tests/${info.testId}`)}>
                   {t("admin.nav.tests")}
@@ -119,20 +134,9 @@ export function Dashboard({ overview, goto }: { overview: AdminOverview; goto: (
         })}
       </div>
 
-      <section className="stack">
-        <div className="row-wrap">
-          <h2>{t("admin.dashboard.title")}</h2>
-          <span className="spacer" />
-          <a className="btn btn-sm" href="/api/admin/export?type=results" download>
-            {t("admin.dashboard.exportResults")}
-          </a>
-          <a className="btn btn-sm" href="/api/admin/export?type=attempts" download>
-            {t("admin.dashboard.exportAttempts")}
-          </a>
-        </div>
-
-        <div className="row-wrap">
-          <div className="field" style={{ flex: "1 1 14rem" }}>
+      <section className="stack" aria-label={t("admin.dashboard.title")}>
+        <div className="row-wrap" style={{ alignItems: "flex-end" }}>
+          <div className="field" style={{ flex: "1 1 14rem", maxWidth: "24rem" }}>
             <label htmlFor="member-search">{t("admin.dashboard.search")}</label>
             <input id="member-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} />
           </div>
@@ -190,8 +194,8 @@ export function Dashboard({ overview, goto }: { overview: AdminOverview; goto: (
                 ) : null}
                 {rows.map((member) => (
                   <tr key={member.id}>
-                    <th scope="row" style={{ background: "transparent", fontWeight: 600 }}>
-                      <button type="button" className="link-button" style={{ font: "inherit", textAlign: "left" }} onClick={() => setDetail(member)}>
+                    <th scope="row" style={{ fontWeight: 500 }}>
+                      <button type="button" className="link-button" style={{ font: "inherit", textAlign: "left", color: "inherit" }} onClick={() => setDetail(member)}>
                         {member.name}
                       </button>
                       {member.selfRegistered ? (
@@ -247,17 +251,17 @@ export function Dashboard({ overview, goto }: { overview: AdminOverview; goto: (
         )}
       </section>
 
-      <section className="stack-sm">
+      <section className="stack">
         <h2>{t("admin.dashboard.recent")}</h2>
         {overview.recentAttempts.length === 0 ? (
           <p className="muted">{t("admin.dashboard.noRecent")}</p>
         ) : (
-          <ul className="stack-sm card" style={{ listStyle: "none", margin: 0 }}>
+          <ul className="rows">
             {overview.recentAttempts.map((attempt) => (
-              <li key={attempt.id} className="row-wrap">
-                <strong>{attempt.memberName}</strong>
-                <span>
-                  {t.dynamic("tests", `${attempt.testId}.name`)} · {attempt.score}/{attempt.total}
+              <li key={attempt.id}>
+                <span style={{ fontWeight: 500 }}>{attempt.memberName}</span>
+                <span className="muted">
+                  {t.dynamic("tests", `${attempt.testId}.name`)} / {attempt.score}/{attempt.total}
                 </span>
                 <span className={`badge ${attempt.passed ? "badge-success" : "badge-danger"}`}>
                   {attempt.passed ? t("home.passed") : t("home.failed")}

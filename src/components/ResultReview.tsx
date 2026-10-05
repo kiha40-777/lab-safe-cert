@@ -50,8 +50,8 @@ export function ResultReview({
       </div>
 
       {showJump ? (
-        <nav className={`card ${styles.jump}`} aria-labelledby={`${baseId}-jump`}>
-          <h2 id={`${baseId}-jump`} style={{ fontSize: "1rem" }}>
+        <nav className={`panel ${styles.jump}`} aria-labelledby={`${baseId}-jump`}>
+          <h2 id={`${baseId}-jump`} className="small">
             {t("result.jump")}
           </h2>
           <div className={styles.jumpGrid}>
@@ -86,7 +86,7 @@ export function ResultReview({
 
       <ol className={`${styles.list} ${styles.body}`}>
         {shown.map(({ question, number }) => (
-          <li key={number} id={itemId(number)} className={`${styles.item} ${question.correct ? styles.ok : styles.bad}`}>
+          <li key={number} id={itemId(number)} className={styles.item}>
             <div className={styles.head}>
               <h3 tabIndex={-1}>{t("result.questionN", { n: number })}</h3>
               {question.correct ? (

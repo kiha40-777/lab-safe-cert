@@ -68,103 +68,106 @@ export function ImportSection({
     ? Object.entries(result.summary.answerDistribution)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([letter, count]) => `${letter}: ${count}`)
-        .join(" · ")
+        .join(" / ")
     : "";
 
   return (
-    <section className="card stack" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`}>{t("admin.bank.importTitle")}</h2>
-      <p className="muted">{t("admin.bank.importHelp")}</p>
-
-      <div className="field">
-        <label htmlFor={`${id}-file`}>{t("admin.bank.chooseFile")}</label>
-        <input
-          id={`${id}-file`}
-          ref={fileInput}
-          type="file"
-          accept=".json,application/json,text/plain"
-          disabled={busy}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void readFile(file);
-          }}
-        />
-        {fileName ? <span className="hint">{t("admin.bank.fileRead", { name: fileName })}</span> : null}
+    <section className="section section-split" aria-labelledby={`${id}-title`}>
+      <div className="section-intro">
+        <h2 id={`${id}-title`}>{t("admin.bank.importTitle")}</h2>
+        <p>{t("admin.bank.importHelp")}</p>
       </div>
-
-      <div className="field">
-        <label htmlFor={`${id}-text`}>{t("admin.bank.pasteLabel")}</label>
-        <textarea
-          id={`${id}-text`}
-          className="mono"
-          rows={6}
-          spellCheck={false}
-          value={text}
-          onChange={(event) => {
-            setText(event.target.value);
-            setResult(null);
-          }}
-          disabled={busy}
-        />
-      </div>
-
-      <div>
-        <button type="button" className="btn" disabled={busy || text.trim() === ""} onClick={() => void check(text)}>
-          {busy ? t("admin.bank.checking") : t("admin.bank.check")}
-        </button>
-      </div>
-
-      <ErrorNotice error={error} />
-
-      {result ? (
-        <div className="stack">
-          {result.ok ? (
-            <Notice kind="success">
-              <strong>{t("admin.bank.resultOk", { count: result.summary?.questionCount ?? 0 })}</strong>
-              {distribution ? (
-                <p className="small">
-                  {t("admin.bank.answersSpread")}: {distribution}
-                </p>
-              ) : null}
-            </Notice>
-          ) : null}
-          <IssueList errors={result.errors} warnings={result.warnings} infos={result.infos} />
-
-          {result.ok ? (
-            <div className="stack">
-              {result.meta && (result.meta.generator || result.meta.generatedAt || result.meta.source) ? (
-                <dl className="small" style={{ margin: 0 }}>
-                  {result.meta.generator ? (
-                    <div>
-                      <dt style={{ display: "inline", fontWeight: 700 }}>{t("admin.bank.madeWith")}: </dt>
-                      <dd style={{ display: "inline", margin: 0 }}>{result.meta.generator}</dd>
-                    </div>
-                  ) : null}
-                  {result.meta.generatedAt ? (
-                    <div>
-                      <dt style={{ display: "inline", fontWeight: 700 }}>{t("admin.bank.madeOn")}: </dt>
-                      <dd style={{ display: "inline", margin: 0 }}>{result.meta.generatedAt}</dd>
-                    </div>
-                  ) : null}
-                  {result.meta.source ? (
-                    <div>
-                      <dt style={{ display: "inline", fontWeight: 700 }}>{t("admin.bank.madeFrom")}: </dt>
-                      <dd style={{ display: "inline", margin: 0 }}>{result.meta.source}</dd>
-                    </div>
-                  ) : null}
-                </dl>
-              ) : null}
-
-              {hasDraft ? <Notice kind="warning">{t("admin.bank.draftExists")}</Notice> : null}
-              <div>
-                <button type="button" className="btn btn-primary" disabled={busy} onClick={open}>
-                  {t("admin.bank.openInEditor")}
-                </button>
-              </div>
-            </div>
-          ) : null}
+      <div className="stack">
+        <div className="field">
+          <label htmlFor={`${id}-file`}>{t("admin.bank.chooseFile")}</label>
+          <input
+            id={`${id}-file`}
+            ref={fileInput}
+            type="file"
+            accept=".json,application/json,text/plain"
+            disabled={busy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void readFile(file);
+            }}
+          />
+          {fileName ? <span className="hint">{t("admin.bank.fileRead", { name: fileName })}</span> : null}
         </div>
-      ) : null}
+
+        <div className="field">
+          <label htmlFor={`${id}-text`}>{t("admin.bank.pasteLabel")}</label>
+          <textarea
+            id={`${id}-text`}
+            className="mono"
+            rows={6}
+            spellCheck={false}
+            value={text}
+            onChange={(event) => {
+              setText(event.target.value);
+              setResult(null);
+            }}
+            disabled={busy}
+          />
+        </div>
+
+        <div>
+          <button type="button" className="btn" disabled={busy || text.trim() === ""} onClick={() => void check(text)}>
+            {busy ? t("admin.bank.checking") : t("admin.bank.check")}
+          </button>
+        </div>
+
+        <ErrorNotice error={error} />
+
+        {result ? (
+          <div className="stack">
+            {result.ok ? (
+              <Notice kind="success">
+                <strong>{t("admin.bank.resultOk", { count: result.summary?.questionCount ?? 0 })}</strong>
+                {distribution ? (
+                  <p className="small">
+                    {t("admin.bank.answersSpread")}: {distribution}
+                  </p>
+                ) : null}
+              </Notice>
+            ) : null}
+            <IssueList errors={result.errors} warnings={result.warnings} infos={result.infos} />
+
+            {result.ok ? (
+              <div className="stack">
+                {result.meta && (result.meta.generator || result.meta.generatedAt || result.meta.source) ? (
+                  <dl className="small" style={{ margin: 0 }}>
+                    {result.meta.generator ? (
+                      <div>
+                        <dt style={{ display: "inline", fontWeight: 700 }}>{t("admin.bank.madeWith")}: </dt>
+                        <dd style={{ display: "inline", margin: 0 }}>{result.meta.generator}</dd>
+                      </div>
+                    ) : null}
+                    {result.meta.generatedAt ? (
+                      <div>
+                        <dt style={{ display: "inline", fontWeight: 700 }}>{t("admin.bank.madeOn")}: </dt>
+                        <dd style={{ display: "inline", margin: 0 }}>{result.meta.generatedAt}</dd>
+                      </div>
+                    ) : null}
+                    {result.meta.source ? (
+                      <div>
+                        <dt style={{ display: "inline", fontWeight: 700 }}>{t("admin.bank.madeFrom")}: </dt>
+                        <dd style={{ display: "inline", margin: 0 }}>{result.meta.source}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                ) : null}
+
+                {hasDraft ? <Notice kind="warning">{t("admin.bank.draftExists")}</Notice> : null}
+                <div>
+                  <button type="button" className="btn btn-primary" disabled={busy} onClick={open}>
+                    {t("admin.bank.openInEditor")}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }

@@ -71,7 +71,7 @@ src/
     layout.tsx, page.tsx       the shell and the test screen ("/")
     admin/page.tsx             the admin screen
     api/**/route.ts            the JSON API (see below)
-    globals.css                design tokens, dark mode, shared classes
+    globals.css                design tokens (dark palette), shared classes
   components/                  shared UI: header, dialogs, notices, PDF viewer, login form, result review
   features/participant/        test screen: login -> name -> home (PDF) -> test -> result
   features/admin/              admin screen: dashboard, members, tests (PDF/prompt/import/editor), settings

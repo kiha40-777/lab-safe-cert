@@ -64,7 +64,7 @@ export function BankEditor({
   }
 
   return (
-    <section className="card stack" aria-labelledby={`${id}-title`}>
+    <section className="stack" aria-labelledby={`${id}-title`}>
       <h2 id={`${id}-title`}>{t("admin.bank.currentTitle")}</h2>
       {draft ? (
         <EditorBody
@@ -218,7 +218,7 @@ function EditorBody({
         <p>
           {meta ? t("admin.bank.info", { count: questions.length, date: formatDateTime(meta.updatedAt) }) : t("admin.bank.draftInfo", { count: questions.length })}
           {meta?.reviewConfirmedAt ? (
-            <span className="muted"> · {t("admin.bank.reviewedAt", { date: formatDateTime(meta.reviewConfirmedAt) })}</span>
+            <span className="muted"> / {t("admin.bank.reviewedAt", { date: formatDateTime(meta.reviewConfirmedAt) })}</span>
           ) : null}
         </p>
         {meta?.generator ? <p className="small muted">{t("admin.bank.generatedBy", { generator: meta.generator })}</p> : null}
@@ -299,7 +299,7 @@ function EditorBody({
               </div>
 
               <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
-                <legend className="label" style={{ fontWeight: 600, marginBottom: "0.35rem" }}>
+                <legend className="label" style={{ fontWeight: 500, fontSize: "0.875rem", marginBottom: "0.375rem" }}>
                   {t("admin.bank.correctChoice")}
                 </legend>
                 <div className="stack-sm">

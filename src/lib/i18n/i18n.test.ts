@@ -49,8 +49,8 @@ describe("language files", () => {
 
 describe("translation", () => {
   it("fills in placeholders and leaves unknown ones visible", () => {
-    expect(translate("en", "home.greeting", { name: "Ann" })).toBe("Hello, Ann");
-    expect(translate("ja", "home.greeting", { name: "太郎" })).toBe("太郎 さん、こんにちは");
+    expect(translate("en", "result.promoted", { role: "Participant" })).toBe("Your role is now Participant.");
+    expect(translate("ja", "result.promoted", { role: "実験参加者" })).toBe("実験参加者に昇格しました。");
     expect(interpolate("a {x} b {y}", { x: 1 })).toBe("a 1 b {y}");
   });
 

@@ -2,9 +2,8 @@
   width: 100%;
   height: min(75vh, 900px);
   min-height: 420px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-inner);
-  background: var(--surface-2);
+  border: 0;
+  background: var(--surface);
 }
 
 .links {

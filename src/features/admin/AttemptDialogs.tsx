@@ -39,7 +39,7 @@ function AttemptBody({ attemptId, formatDateTime }: { attemptId: string; formatD
           {result.passed ? t("home.passed") : t("home.failed")}
         </span>
         <span>
-          {t.dynamic("tests", `${result.testId}.name`)} · {result.score}/{result.total}
+          {t.dynamic("tests", `${result.testId}.name`)} / {result.score}/{result.total}
         </span>
         <span className="muted small">{formatDateTime(result.submittedAt)}</span>
       </div>
@@ -85,7 +85,7 @@ function MemberAttemptsBody({ memberId, onView }: { memberId: string; onView: (a
             {attempt.passed ? t("home.passed") : t("home.failed")}
           </span>
           <span>
-            {t.dynamic("tests", `${attempt.testId}.name`)} · {attempt.score}/{attempt.total}
+            {t.dynamic("tests", `${attempt.testId}.name`)} / {attempt.score}/{attempt.total}
           </span>
           <span className="muted small">{attempt.submittedAt ? formatDateTime(attempt.submittedAt) : ""}</span>
           <span className="spacer" />

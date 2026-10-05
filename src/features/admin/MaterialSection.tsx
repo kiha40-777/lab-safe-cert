@@ -58,59 +58,62 @@ export function MaterialSection({
   }
 
   return (
-    <section className="card stack" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`}>{t("admin.material.title")}</h2>
-      <p className="muted">{t("admin.material.help")}</p>
-
-      {material ? (
-        <p className="muted">
-          {t("admin.material.uploaded", { filename: material.filename, size: formatBytes(material.size) })}{" "}
-          <span className="small">{formatDateTime(material.uploadedAt)}</span>
-        </p>
-      ) : (
-        <p className="muted">{t("admin.material.none")}</p>
-      )}
-
-      <div className="field">
-        <label htmlFor={`${id}-file`}>{material ? t("admin.material.replace") : t("admin.material.upload")}</label>
-        <input
-          id={`${id}-file`}
-          ref={input}
-          type="file"
-          accept="application/pdf,.pdf"
-          disabled={busy}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void upload(file);
-          }}
-        />
-        {busy ? <span className="hint">{t("admin.material.uploading")}</span> : null}
+    <section className="section section-split" aria-labelledby={`${id}-title`}>
+      <div className="section-intro">
+        <h2 id={`${id}-title`}>{t("admin.material.title")}</h2>
+        <p>{t("admin.material.help")}</p>
       </div>
+      <div className="stack">
+        {material ? (
+          <p className="muted">
+            {t("admin.material.uploaded", { filename: material.filename, size: formatBytes(material.size) })}{" "}
+            <span className="small">{formatDateTime(material.uploadedAt)}</span>
+          </p>
+        ) : (
+          <p className="muted">{t("admin.material.none")}</p>
+        )}
 
-      <ErrorNotice error={error} />
-
-      {material ? (
-        <div className="row-wrap">
-          <button type="button" className="btn btn-sm" onClick={() => setPreview((shown) => !shown)} aria-expanded={preview}>
-            {t("admin.material.preview")}
-          </button>
-          <button type="button" className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(true)} disabled={busy}>
-            {t("common.delete")}
-          </button>
+        <div className="field">
+          <label htmlFor={`${id}-file`}>{material ? t("admin.material.replace") : t("admin.material.upload")}</label>
+          <input
+            id={`${id}-file`}
+            ref={input}
+            type="file"
+            accept="application/pdf,.pdf"
+            disabled={busy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void upload(file);
+            }}
+          />
+          {busy ? <span className="hint">{t("admin.material.uploading")}</span> : null}
         </div>
-      ) : null}
-      {material && preview ? <PdfViewer src={src} title={t("admin.material.preview")} /> : null}
 
-      <ConfirmDialog
-        open={confirmDelete}
-        title={t("common.delete")}
-        message={<p>{t("admin.material.deleteConfirm")}</p>}
-        confirmLabel={t("common.delete")}
-        danger
-        busy={busy}
-        onConfirm={() => void remove()}
-        onCancel={() => setConfirmDelete(false)}
-      />
+        <ErrorNotice error={error} />
+
+        {material ? (
+          <div className="row-wrap">
+            <button type="button" className="btn btn-sm" onClick={() => setPreview((shown) => !shown)} aria-expanded={preview}>
+              {t("admin.material.preview")}
+            </button>
+            <button type="button" className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(true)} disabled={busy}>
+              {t("common.delete")}
+            </button>
+          </div>
+        ) : null}
+        {material && preview ? <PdfViewer src={src} title={t("admin.material.preview")} /> : null}
+
+        <ConfirmDialog
+          open={confirmDelete}
+          title={t("common.delete")}
+          message={<p>{t("admin.material.deleteConfirm")}</p>}
+          confirmLabel={t("common.delete")}
+          danger
+          busy={busy}
+          onConfirm={() => void remove()}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      </div>
     </section>
   );
 }

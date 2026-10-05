@@ -27,41 +27,47 @@ export function ResultView({
   return (
     <main id="main" className="container container-wide">
       <div className="stack-lg">
-        <section className="card stack">
-          <p className="muted">
-            {testName} — {t("result.title")}
-          </p>
-          <Notice kind={result.passed ? "success" : "warning"}>
-            <p style={{ fontSize: "1.5rem", fontWeight: 800 }}>{result.passed ? t("result.passed") : t("result.failed")}</p>
-          </Notice>
-          <p style={{ fontSize: "1.25rem", fontWeight: 700 }}>
-            {t("result.score", { score: result.score, total: result.total })} ({percent}%)
-          </p>
-          <p className="muted">{t("result.required", { required: result.requiredScore })}</p>
-          {result.promotedTo ? (
-            <Notice kind="success">{t("result.promoted", { role: t.dynamic("roles", result.promotedTo) })}</Notice>
-          ) : null}
-          {!result.passed ? <p>{t("result.failedHint")}</p> : null}
+        <div className="stack">
+          <header className="page-head" style={{ alignItems: "center" }}>
+            <p className="eyebrow" style={{ flex: "1 1 16rem" }}>
+              {testName}
+            </p>
+            <div className="page-head-actions">
+              {hasMaterial ? (
+                <button type="button" className="btn" onClick={() => setShowMaterial((shown) => !shown)} aria-expanded={showMaterial}>
+                  {showMaterial ? t("result.hideMaterial") : t("result.showMaterial")}
+                </button>
+              ) : null}
+              <button type="button" className="btn" onClick={onBack}>
+                {t("result.backHome")}
+              </button>
+              {!result.passed ? (
+                <button type="button" className="btn btn-primary" onClick={onRetry}>
+                  {t("result.retry")}
+                </button>
+              ) : null}
+            </div>
+          </header>
 
-          <div className="row-wrap">
-            {!result.passed ? (
-              <button type="button" className="btn btn-primary" onClick={onRetry}>
-                {t("result.retry")}
-              </button>
-            ) : null}
-            {hasMaterial ? (
-              <button type="button" className="btn" onClick={() => setShowMaterial((shown) => !shown)} aria-expanded={showMaterial}>
-                {showMaterial ? t("result.hideMaterial") : t("result.showMaterial")}
-              </button>
-            ) : null}
-            <button type="button" className="btn" onClick={onBack}>
-              {t("result.backHome")}
-            </button>
+          <div className={`verdict ${result.passed ? "verdict-pass" : "verdict-fail"}`}>
+            <h1>{result.passed ? t("result.passed") : t("result.failed")}</h1>
+            <p style={{ fontVariantNumeric: "tabular-nums" }}>
+              <strong style={{ fontWeight: 800 }}>
+                {t("result.score", { score: result.score, total: result.total })} ({percent}%)
+              </strong>
+              {" / "}
+              {t("result.required", { required: result.requiredScore })}
+            </p>
           </div>
-        </section>
+        </div>
+
+        {result.promotedTo ? (
+          <Notice kind="success">{t("result.promoted", { role: t.dynamic("roles", result.promotedTo) })}</Notice>
+        ) : null}
+        {!result.passed ? <p className="muted">{t("result.failedHint")}</p> : null}
 
         {showMaterial ? (
-          <section className="card">
+          <section>
             <PdfViewer src={`/api/participant/materials/${result.testId}`} title={t("home.materialFor", { test: testName })} />
           </section>
         ) : null}

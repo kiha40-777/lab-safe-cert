@@ -45,35 +45,38 @@ function TestWorkspace({
 
   return (
     <div className="stack-lg">
-      <div className="stack-sm">
-        <h2>{t("admin.tests.title")}</h2>
-        <p className="muted">{t("admin.tests.intro")}</p>
-      </div>
+      <header className="page-head">
+        <div className="page-head-text">
+          <p className="eyebrow">{t("admin.tests.title")}</p>
+          <h1>{t.dynamic("tests", `${test.id}.name`)}</h1>
+          <p className="page-sub">{t("admin.tests.intro")}</p>
+        </div>
+      </header>
 
-      <h3 style={{ fontSize: "1.2rem" }}>{t.dynamic("tests", `${test.id}.name`)}</h3>
-
-      <MaterialSection key={`material-${test.id}`} testId={test.id} material={info?.material ?? null} onChanged={reload} />
-      <PromptSection key={`prompt-${test.id}`} test={test} />
-      <ImportSection
-        key={`import-${test.id}`}
-        test={test}
-        hasDraft={draft !== null}
-        onOpen={(questions, draftInfo) => {
-          setDraft((previous) => ({ serial: (previous?.serial ?? 0) + 1, questions, info: draftInfo }));
-          // Step 3 is further down the page; take the admin there.
-          window.setTimeout(() => editor.current?.scrollIntoView({ block: "start" }), 0);
-        }}
-      />
-      <div ref={editor}>
-        <BankEditor
-          key={`bank-${test.id}`}
+      <div>
+        <MaterialSection key={`material-${test.id}`} testId={test.id} material={info?.material ?? null} onChanged={reload} />
+        <PromptSection key={`prompt-${test.id}`} test={test} />
+        <ImportSection
+          key={`import-${test.id}`}
           test={test}
-          draft={draft}
-          existingCount={info?.questionCount ?? 0}
-          onChanged={reload}
-          onDraftSaved={() => setDraft(null)}
-          onDraftDiscarded={() => setDraft(null)}
+          hasDraft={draft !== null}
+          onOpen={(questions, draftInfo) => {
+            setDraft((previous) => ({ serial: (previous?.serial ?? 0) + 1, questions, info: draftInfo }));
+            // Step 3 is further down the page; take the admin there.
+            window.setTimeout(() => editor.current?.scrollIntoView({ block: "start" }), 0);
+          }}
         />
+        <div ref={editor} className="section">
+          <BankEditor
+            key={`bank-${test.id}`}
+            test={test}
+            draft={draft}
+            existingCount={info?.questionCount ?? 0}
+            onChanged={reload}
+            onDraftSaved={() => setDraft(null)}
+            onDraftDiscarded={() => setDraft(null)}
+          />
+        </div>
       </div>
     </div>
   );

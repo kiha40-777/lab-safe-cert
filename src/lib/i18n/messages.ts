@@ -17,7 +17,7 @@ type StripPlural<K extends string> = K extends `${infer B}_one`
     ? B
     : K;
 
-/** Every text key, e.g. "home.greeting". A typo in a key is a compile error. */
+/** Every text key, e.g. "home.start". A typo in a key is a compile error. */
 export type MessageKey = StripPlural<Leaves<Messages>>;
 
 // `satisfies Messages` makes the compiler check that a language has every key of English.

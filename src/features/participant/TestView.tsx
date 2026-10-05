@@ -93,19 +93,20 @@ export function TestView({
 
   return (
     <main id="main" className="container container-wide">
-      <div className="stack">
-        <div className="row-wrap">
-          <h1 style={{ fontSize: "1.3rem" }}>{t.dynamic("tests", `${attempt.testId}.name`)}</h1>
-          <span className="spacer" />
+      <div className="stack-lg">
+        <header className="page-head">
+          <div className="page-head-text">
+            <h1>{t.dynamic("tests", `${attempt.testId}.name`)}</h1>
+          </div>
           <button type="button" className="link-button small" onClick={() => void leave()}>
             {t("test.leave")}
           </button>
-        </div>
+        </header>
 
         {attempt.resumed ? <Notice kind="info">{t("test.restored")}</Notice> : null}
 
         <div className={styles.layout}>
-          <section className="card stack" aria-labelledby="question-heading">
+          <section className={`stack ${styles.main}`} aria-labelledby="question-heading">
             <div className="row-wrap">
               <h2 id="question-heading" ref={heading} tabIndex={-1} className={styles.heading}>
                 {t("test.questionOf", { current: index + 1, total })}
@@ -138,7 +139,7 @@ export function TestView({
               </div>
             </fieldset>
 
-            <div className="row-wrap">
+            <div className={`row-wrap ${styles.pager}`}>
               <button type="button" className="btn" onClick={() => setIndex(index - 1)} disabled={index === 0}>
                 {t("test.previous")}
               </button>
@@ -155,8 +156,8 @@ export function TestView({
             </div>
           </section>
 
-          <section className={`card stack ${styles.side}`} aria-labelledby="navigator-heading">
-            <h2 id="navigator-heading" style={{ fontSize: "1rem" }}>
+          <section className={`panel stack ${styles.side}`} aria-labelledby="navigator-heading">
+            <h2 id="navigator-heading" className="small">
               {t("test.navigator")}
             </h2>
             <div className={styles.nav}>
@@ -178,14 +179,13 @@ export function TestView({
                 );
               })}
             </div>
-            <div className="row-wrap">
+            <div className="stack-sm">
+              <button type="button" className="btn btn-block" onClick={() => setConfirming(true)}>
+                {t("test.handIn")}
+              </button>
               <span className="hint" role="status">
                 {saveFailed ? t("test.autosaveFailed") : t("test.autosaved")}
               </span>
-              <span className="spacer" />
-              <button type="button" className="btn btn-primary" onClick={() => setConfirming(true)}>
-                {t("test.handIn")}
-              </button>
             </div>
           </section>
         </div>

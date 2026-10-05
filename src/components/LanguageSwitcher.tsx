@@ -9,7 +9,6 @@ export function LanguageSwitcher() {
   return (
     <label className="row small">
       <span className="visually-hidden">{t("common.language")}</span>
-      <span aria-hidden="true">🌐</span>
       <select
         value={locale}
         onChange={(event) => {

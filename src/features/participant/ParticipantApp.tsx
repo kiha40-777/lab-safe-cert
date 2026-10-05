@@ -60,7 +60,7 @@ export function ParticipantApp() {
       <AppHeader>
         {s?.participant ? (
           <>
-            {s.member ? <span className="small muted">{s.member.name}</span> : null}
+            {s.member ? <span className="topbar-user">{s.member.name}</span> : null}
             <button type="button" className="btn btn-sm" onClick={() => void logout()}>
               {t("common.logout")}
             </button>
