@@ -1,4 +1,4 @@
-import type { Issue, QuestionDto, ValidationSummary } from "@/lib/types";
+import type { Issue, QuestionDto, QuestionKind, ValidationSummary } from "@/lib/types";
 import type { Bank, BankInfo, BankRules, Question, ValidationOutcome } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -13,6 +13,9 @@ import type { Bank, BankInfo, BankRules, Question, ValidationOutcome } from "./t
 //   ]
 // }
 //
+// A question may have "type": "case_study" (default "standard"): a situation described in the
+// question text. Case studies are drawn separately and always asked after the ordinary questions.
+//
 // The correct answer is a LETTER (A = first choice, B = second, ...). Numbers
 // are refused on purpose: 0-based vs 1-based would be ambiguous, and a silently
 // misread answer key would mark correct answers as wrong.
@@ -20,6 +23,8 @@ import type { Bank, BankInfo, BankRules, Question, ValidationOutcome } from "./t
 
 export const LETTERS = "ABCDEFGH";
 const MAX_QUESTION_CHARS = 1000;
+/** A case study describes a situation first, so its text may be longer. */
+const MAX_CASE_STUDY_CHARS = 3000;
 const MAX_CHOICE_CHARS = 500;
 const MAX_NOTE_CHARS = 1000;
 const MAX_ISSUES_PER_CODE = 8;
@@ -56,6 +61,13 @@ const REFERS_TO_CHOICES = [
 
 function matchesAny(patterns: RegExp[], text: string): boolean {
   return patterns.some((pattern) => pattern.test(text));
+}
+
+/** "standard" or "case_study"; also reads "case-study" and "Case Study". null when it is neither. */
+function parseKind(value: unknown): QuestionKind | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return normalized === "standard" || normalized === "case_study" ? normalized : null;
 }
 
 function parseAnswerLetter(value: string): number | null {
@@ -104,6 +116,7 @@ function capIssues(issues: Issue[]): Issue[] {
 
 interface Candidate {
   n: number;
+  kind: QuestionKind;
   id: string | null;
   text: string;
   choices: string[];
@@ -147,6 +160,8 @@ export function validateBank(
 
   const candidates: Candidate[] = [];
   const explicitIds = new Map<string, number[]>();
+  let standardInput = 0;
+  let caseStudyInput = 0;
 
   for (const [i, item] of rawQuestions.entries()) {
     const n = i + 1;
@@ -156,14 +171,28 @@ export function validateBank(
     }
     const errorsBefore = errors.length;
 
+    // kind: ordinary question or case study
+    let kind: QuestionKind = "standard";
+    if (item.type !== undefined && item.type !== null) {
+      const parsedKind = parseKind(item.type);
+      if (parsedKind === null) {
+        errors.push({ code: "question.typeInvalid", question: n, params: { value: shorten(String(item.type), 30) } });
+      } else {
+        kind = parsedKind;
+      }
+    }
+    if (kind === "case_study") caseStudyInput++;
+    else standardInput++;
+
     // question text
+    const maxTextChars = kind === "case_study" ? MAX_CASE_STUDY_CHARS : MAX_QUESTION_CHARS;
     let text: string | null = null;
     if (typeof item.question !== "string" || item.question.trim() === "") {
       errors.push({ code: "question.textMissing", question: n });
     } else {
       text = item.question.trim();
-      if (text.length > MAX_QUESTION_CHARS) {
-        errors.push({ code: "question.textTooLong", question: n, params: { max: MAX_QUESTION_CHARS } });
+      if (text.length > maxTextChars) {
+        errors.push({ code: "question.textTooLong", question: n, params: { max: maxTextChars } });
       } else if ([...text].length < 5) {
         warnings.push({ code: "question.textShort", question: n });
       }
@@ -287,6 +316,7 @@ export function validateBank(
     if (errors.length === errorsBefore && text !== null && choices !== null && answerIndex !== null) {
       candidates.push({
         n,
+        kind,
         id,
         text,
         choices,
@@ -306,12 +336,32 @@ export function validateBank(
   // bank-level checks
   const inputCount = rawQuestions.length;
   if (Array.isArray(parsed) || (isRecord(parsed) && Array.isArray(parsed.questions))) {
+    // The ordinary questions are counted on their own: case studies are drawn separately.
+    const withCaseStudies = rules.caseStudy !== null;
     if (inputCount === 0) {
       errors.push({ code: "bank.empty" });
-    } else if (inputCount < rules.minQuestions) {
-      errors.push({ code: "bank.tooFew", params: { count: inputCount, required: rules.minQuestions } });
-    } else if (inputCount !== rules.expectedQuestions) {
-      warnings.push({ code: "bank.sizeDiffers", params: { count: inputCount, expected: rules.expectedQuestions } });
+    } else {
+      if (standardInput < rules.minQuestions) {
+        errors.push({
+          code: withCaseStudies ? "bank.standardTooFew" : "bank.tooFew",
+          params: { count: standardInput, required: rules.minQuestions },
+        });
+      } else if (standardInput !== rules.expectedQuestions) {
+        warnings.push({
+          code: withCaseStudies ? "bank.standardSizeDiffers" : "bank.sizeDiffers",
+          params: { count: standardInput, expected: rules.expectedQuestions },
+        });
+      }
+      if (rules.caseStudy !== null) {
+        if (caseStudyInput < rules.caseStudy.perTest) {
+          errors.push({
+            code: "bank.caseStudyTooFew",
+            params: { count: caseStudyInput, required: rules.caseStudy.perTest },
+          });
+        }
+      } else if (caseStudyInput > 0) {
+        warnings.push({ code: "bank.caseStudyUnused", params: { count: caseStudyInput } });
+      }
     }
   }
 
@@ -346,7 +396,14 @@ export function validateBank(
   }
 
   const summary: ValidationSummary | null =
-    candidates.length > 0 ? { questionCount: candidates.length, choiceCounts, answerDistribution } : null;
+    candidates.length > 0
+      ? {
+          questionCount: candidates.length,
+          caseStudyCount: candidates.filter((c) => c.kind === "case_study").length,
+          choiceCounts,
+          answerDistribution,
+        }
+      : null;
 
   if (errors.length > 0) {
     return { errors: capIssues(errors), warnings: capIssues(warnings), infos, bank: null, summary };
@@ -365,6 +422,7 @@ export function validateBank(
     }
     return {
       id,
+      kind: c.kind,
       text: c.text,
       choices: c.choices,
       answerIndex: c.answerIndex,
@@ -446,6 +504,7 @@ export function validateBankText(text: string, rules: BankRules): ValidationOutc
 export function questionToDto(question: Question): QuestionDto {
   return {
     id: question.id,
+    kind: question.kind,
     text: question.text,
     choices: [...question.choices],
     answerIndex: question.answerIndex,
@@ -465,6 +524,7 @@ export function validateEditedQuestions(
     meta: { generator: info.generator, generated_at: info.generatedAt, source: info.source },
     questions: questions.map((q) => ({
       id: q.id.trim() === "" ? undefined : q.id,
+      type: q.kind === "case_study" ? "case_study" : undefined,
       question: q.text,
       choices: q.choices,
       answer: q.answerIndex >= 0 ? letterOf(q.answerIndex) : undefined,
@@ -486,6 +546,7 @@ export function bankToExternal(bank: Bank): Record<string, unknown> {
     },
     questions: bank.questions.map((q) => ({
       id: q.id,
+      ...(q.kind === "case_study" ? { type: "case_study" } : {}),
       question: q.text,
       choices: q.choices,
       answer: letterOf(q.answerIndex),

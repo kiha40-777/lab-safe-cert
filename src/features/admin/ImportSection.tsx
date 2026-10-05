@@ -122,7 +122,14 @@ export function ImportSection({
           <div className="stack">
             {result.ok ? (
               <Notice kind="success">
-                <strong>{t("admin.bank.resultOk", { count: result.summary?.questionCount ?? 0 })}</strong>
+                <strong>
+                    {(result.summary?.caseStudyCount ?? 0) > 0
+                      ? t("admin.bank.resultOkCaseStudy", {
+                          count: result.summary?.questionCount ?? 0,
+                          caseStudy: result.summary?.caseStudyCount ?? 0,
+                        })
+                      : t("admin.bank.resultOk", { count: result.summary?.questionCount ?? 0 })}
+                  </strong>
                 {distribution ? (
                   <p className="small">
                     {t("admin.bank.answersSpread")}: {distribution}

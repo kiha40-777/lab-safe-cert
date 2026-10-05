@@ -5,6 +5,7 @@ import type { AppContext } from "../context";
 import { conflict } from "../http/errors";
 import { findActiveAttempt, listSubmittedAttempts } from "./attempts";
 import { loadBankMetas } from "./banks";
+import { isBankReady, loadCaseStudyPerTests } from "./case-study";
 import { listMaterialInfos } from "./materials";
 import { type MemberRow, createMember, findMemberRow, listMemberRows, requireMemberRow, toMemberDto } from "./members";
 
@@ -46,8 +47,9 @@ export async function identify(
 
 /** What the participant's start screen needs: their role, which test is next, study PDFs, recent results. */
 export async function getParticipantHome(ctx: AppContext, member: MemberRow): Promise<ParticipantHome> {
-  const [banks, materials, activeAttempt, recentAttempts] = await Promise.all([
+  const [banks, caseStudyPerTest, materials, activeAttempt, recentAttempts] = await Promise.all([
     loadBankMetas(ctx.db),
+    loadCaseStudyPerTests(ctx.db, ctx.config),
     listMaterialInfos(ctx.db),
     findActiveAttempt(ctx, member.id),
     listSubmittedAttempts(ctx.db, member.id, 5),
@@ -55,11 +57,17 @@ export async function getParticipantHome(ctx: AppContext, member: MemberRow): Pr
   const nextTestId = testForRole(ctx.config, member.role)?.id ?? null;
   return {
     member: toMemberDto(member),
-    tests: ctx.config.tests.map((test) => ({
-      testId: test.id,
-      ready: (banks.get(test.id)?.count ?? 0) >= test.questionsPerTest,
-      material: materials.get(test.id) ?? null,
-    })),
+    tests: ctx.config.tests.map((test) => {
+      const caseStudy = caseStudyPerTest.get(test.id) ?? 0;
+      const bank = banks.get(test.id);
+      return {
+        testId: test.id,
+        ready: isBankReady(test, caseStudy, { total: bank?.count ?? 0, caseStudy: bank?.caseStudyCount ?? 0 }),
+        questionCount: test.questionsPerTest,
+        caseStudyCount: caseStudy,
+        material: materials.get(test.id) ?? null,
+      };
+    }),
     nextTestId,
     // An unfinished attempt only counts while the person still has the level that test is for
     // (an admin may have changed their level in the meantime).

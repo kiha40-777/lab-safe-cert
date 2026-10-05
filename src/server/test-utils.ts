@@ -4,6 +4,7 @@ import { openSqlite } from "./db/sqlite";
 import { migrate } from "./db/migrations";
 import type { CertificationConfig } from "@/lib/certification";
 import { certification } from "@/lib/config";
+import type { QuestionKind } from "@/lib/types";
 import { createContext, type AppContext } from "./context";
 import { readEnv } from "./env";
 import type { Rng } from "./rng";
@@ -32,29 +33,44 @@ export function seededRng(seed = 1): Rng {
   };
 }
 
-/** Placeholder questions; the correct choice rotates through A, B, C, D, ... */
-export function makeQuestions(count: number, choiceCount = 4): Question[] {
+/**
+ * Placeholder questions; the correct choice rotates through A, B, C, D, ...
+ * Case studies get the ids c001, c002, ... so that they never collide with the ordinary ones.
+ */
+export function makeQuestions(count: number, choiceCount = 4, kind: QuestionKind = "standard"): Question[] {
+  const caseStudy = kind === "case_study";
   return Array.from({ length: count }, (_, i) => ({
-    id: `q${String(i + 1).padStart(3, "0")}`,
-    text: `Placeholder question number ${i + 1}, used only by automated tests.`,
-    choices: Array.from({ length: choiceCount }, (_, k) => `Placeholder value ${i + 1}.${k + 1}`),
+    id: `${caseStudy ? "c" : "q"}${String(i + 1).padStart(3, "0")}`,
+    kind,
+    text: caseStudy
+      ? `Placeholder case study number ${i + 1}, used only by automated tests.`
+      : `Placeholder question number ${i + 1}, used only by automated tests.`,
+    choices: Array.from({ length: choiceCount }, (_, k) => `Placeholder value ${caseStudy ? "c" : ""}${i + 1}.${k + 1}`),
     answerIndex: i % choiceCount,
     explanation: null,
     source: null,
   }));
 }
 
-/** A question-bank file (as JSON text) made of placeholder questions. */
-export function makeBankJson(count: number, choiceCount = 4, extra: Record<string, unknown> = {}): string {
+/** A question-bank file (as JSON text) made of placeholder questions, case studies (after the others) included. */
+export function makeBankJson(
+  count: number,
+  choiceCount = 4,
+  extra: Record<string, unknown> = {},
+  caseStudyCount = 0,
+): string {
   return JSON.stringify({
     schema_version: 1,
     meta: { generator: "test-suite", generated_at: "2000-01-01", source: "placeholder" },
-    questions: makeQuestions(count, choiceCount).map((q) => ({
-      id: q.id,
-      question: q.text,
-      choices: q.choices,
-      answer: letterOf(q.answerIndex),
-    })),
+    questions: [...makeQuestions(count, choiceCount), ...makeQuestions(caseStudyCount, choiceCount, "case_study")].map(
+      (q) => ({
+        id: q.id,
+        ...(q.kind === "case_study" ? { type: "case_study" } : {}),
+        question: q.text,
+        choices: q.choices,
+        answer: letterOf(q.answerIndex),
+      }),
+    ),
     ...extra,
   });
 }
@@ -86,6 +102,15 @@ export async function makeTestContext(
       current = new Date(current.getTime() + ms);
     },
   });
+}
+
+/** "standard" or "case_study" for every question of an attempt, in the order shown (read from the stored snapshot). */
+export async function kindsOf(ctx: AppContext, attemptId: string): Promise<QuestionKind[]> {
+  const row = await ctx.db.get<{ questions_json: string }>("SELECT questions_json FROM attempts WHERE id = ?", [
+    attemptId,
+  ]);
+  if (!row) throw new Error(`attempt ${attemptId} not found`);
+  return (JSON.parse(row.questions_json) as { kind?: QuestionKind }[]).map((q) => q.kind ?? "standard");
 }
 
 /** The correct answer index of every question of an attempt, read from the stored snapshot. */

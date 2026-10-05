@@ -1,10 +1,11 @@
 import { findTest } from "@/lib/certification";
 import type { AttemptDetail, AttemptResult, AttemptSummary, AttemptView } from "@/lib/types";
-import { type DrawnQuestion, drawQuestions, gradeAnswers, requiredScore } from "../bank/grading";
+import { type DrawnQuestion, drawAttempt, gradeAnswers, requiredScore } from "../bank/grading";
 import type { AppContext } from "../context";
 import type { Db, Row } from "../db/types";
 import { badRequest, conflict, forbidden, notFound } from "../http/errors";
 import { loadBank } from "./banks";
+import { isBankReady, loadCaseStudyPerTest, standardPerTest } from "./case-study";
 import { requireMemberRow } from "./members";
 
 export interface AttemptRow extends Row {
@@ -142,11 +143,16 @@ export async function startAttempt(ctx: AppContext, memberId: string, testId: st
     }
 
     const bank = await loadBank(tx, testId);
-    if (!bank || bank.questions.length < test.questionsPerTest) throw conflict("testNotReady");
+    const caseStudyPerTest = await loadCaseStudyPerTest(tx, test);
+    const available = {
+      total: bank?.questions.length ?? 0,
+      caseStudy: bank?.questions.filter((q) => q.kind === "case_study").length ?? 0,
+    };
+    if (!bank || !isBankReady(test, caseStudyPerTest, available)) throw conflict("testNotReady");
 
-    const drawn = drawQuestions(
+    const drawn = drawAttempt(
       bank.questions,
-      test.questionsPerTest,
+      { standard: standardPerTest(test, caseStudyPerTest), caseStudy: caseStudyPerTest },
       { shuffleQuestions: ctx.config.shuffle.questions, shuffleChoices: ctx.config.shuffle.choices },
       ctx.rng,
     );

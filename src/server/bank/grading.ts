@@ -1,10 +1,13 @@
 import { requiredScore } from "@/lib/certification";
+import type { QuestionKind } from "@/lib/types";
 import { type Rng, shuffleInPlace } from "../rng";
 import type { Question } from "./types";
 
 /** A question as drawn for one attempt: choices are in the order shown to the person. */
 export interface DrawnQuestion {
   id: string;
+  /** Missing in attempts stored before case studies existed (read as "standard"). */
+  kind?: QuestionKind;
   text: string;
   choices: string[];
   answerIndex: number;
@@ -44,6 +47,7 @@ export function drawQuestions(
     if (options.shuffleChoices) shuffleInPlace(permutation, rng);
     return {
       id: question.id,
+      kind: question.kind,
       text: question.text,
       choices: permutation.map((from) => question.choices[from] as string),
       answerIndex: permutation.indexOf(question.answerIndex),
@@ -51,6 +55,26 @@ export function drawQuestions(
       source: question.source,
     };
   });
+}
+
+export interface DrawPlan {
+  /** Ordinary questions to draw. */
+  standard: number;
+  /** Case-study questions to draw (0 = none). */
+  caseStudy: number;
+}
+
+/**
+ * Draws the questions of one attempt: first the ordinary ones, then the case studies. Each kind is drawn
+ * (and, if shuffling is on, ordered) at random on its own, so the case studies always come last, together.
+ */
+export function drawAttempt(bank: Question[], plan: DrawPlan, options: DrawOptions, rng: Rng): DrawnQuestion[] {
+  const standard = bank.filter((q) => q.kind !== "case_study");
+  const caseStudies = bank.filter((q) => q.kind === "case_study");
+  return [
+    ...(plan.standard > 0 ? drawQuestions(standard, plan.standard, options, rng) : []),
+    ...(plan.caseStudy > 0 ? drawQuestions(caseStudies, plan.caseStudy, options, rng) : []),
+  ];
 }
 
 export interface Grade {

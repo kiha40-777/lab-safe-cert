@@ -6,6 +6,7 @@ import { certification } from "@/lib/config";
 import { useI18n } from "@/lib/i18n/context";
 import type { AdminOverview } from "@/lib/types";
 import { BankEditor, type Draft } from "./BankEditor";
+import { CaseStudySection } from "./CaseStudySection";
 import { ImportSection } from "./ImportSection";
 import { MaterialSection } from "./MaterialSection";
 import { PromptSection } from "./PromptSection";
@@ -39,6 +40,8 @@ function TestWorkspace({
   const test = findTest(certification, testId);
   // Questions from an uploaded file that wait in step 3 for review; nothing is stored until they are confirmed there.
   const [draft, setDraft] = useState<Draft | null>(null);
+  // How many case-study questions the AI is asked for (only affects the prompt); starts at the default of the config file.
+  const [caseStudiesToWrite, setCaseStudiesToWrite] = useState(test?.caseStudy?.bankSize ?? 0);
   const editor = useRef<HTMLDivElement>(null);
   if (!test) return null;
   const info = overview.tests.find((x) => x.testId === test.id);
@@ -55,7 +58,21 @@ function TestWorkspace({
 
       <div>
         <MaterialSection key={`material-${test.id}`} testId={test.id} material={info?.material ?? null} onChanged={reload} />
-        <PromptSection key={`prompt-${test.id}`} test={test} />
+        {test.caseStudy && info?.caseStudy ? (
+          <CaseStudySection
+            key={`case-study-${test.id}`}
+            test={test}
+            info={info.caseStudy}
+            generateCount={caseStudiesToWrite}
+            onGenerateCountChange={setCaseStudiesToWrite}
+            onChanged={reload}
+          />
+        ) : null}
+        <PromptSection
+          key={`prompt-${test.id}`}
+          test={test}
+          caseStudyCount={test.caseStudy ? caseStudiesToWrite : 0}
+        />
         <ImportSection
           key={`import-${test.id}`}
           test={test}
@@ -72,6 +89,7 @@ function TestWorkspace({
             test={test}
             draft={draft}
             existingCount={info?.questionCount ?? 0}
+            caseStudy={info?.caseStudy ?? null}
             onChanged={reload}
             onDraftSaved={() => setDraft(null)}
             onDraftDiscarded={() => setDraft(null)}

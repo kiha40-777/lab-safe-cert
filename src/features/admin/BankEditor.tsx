@@ -9,7 +9,7 @@ import type { TestConfig } from "@/lib/certification";
 import { certification } from "@/lib/config";
 import { useLoad } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n/context";
-import type { BankDto, BankMetaDto, QuestionDto, ValidationResultDto } from "@/lib/types";
+import type { BankDto, BankMetaDto, CaseStudyInfo, QuestionDto, QuestionKind, ValidationResultDto } from "@/lib/types";
 import styles from "./BankEditor.module.css";
 import { IssueList } from "./IssueList";
 
@@ -39,6 +39,7 @@ export function BankEditor({
   test,
   draft,
   existingCount,
+  caseStudy,
   onChanged,
   onDraftSaved,
   onDraftDiscarded,
@@ -47,6 +48,8 @@ export function BankEditor({
   draft: Draft | null;
   /** Number of questions in the stored bank (0 when there is none); a saved draft replaces them. */
   existingCount: number;
+  /** null when the test has no case-study questions. */
+  caseStudy: CaseStudyInfo | null;
   onChanged: () => Promise<void>;
   onDraftSaved: () => void;
   onDraftDiscarded: () => void;
@@ -75,6 +78,7 @@ export function BankEditor({
           meta={null}
           isDraft
           existingCount={existingCount}
+          caseStudy={caseStudy}
           justSaved={null}
           onSaved={async () => {
             await afterSave("import");
@@ -103,6 +107,7 @@ export function BankEditor({
                 meta={loaded.data.bank.meta}
                 isDraft={false}
                 existingCount={existingCount}
+                caseStudy={caseStudy}
                 justSaved={justSaved}
                 onSaved={() => afterSave("edit")}
                 onDiscardDraft={onDraftDiscarded}
@@ -124,6 +129,7 @@ function EditorBody({
   meta,
   isDraft,
   existingCount,
+  caseStudy,
   justSaved,
   onSaved,
   onDiscardDraft,
@@ -135,6 +141,7 @@ function EditorBody({
   meta: BankMetaDto | null;
   isDraft: boolean;
   existingCount: number;
+  caseStudy: CaseStudyInfo | null;
   justSaved: Saved | null;
   onSaved: () => Promise<void>;
   onDiscardDraft: () => void;
@@ -157,6 +164,9 @@ function EditorBody({
   const [confirmedSnapshot, setConfirmedSnapshot] = useState<string | null>(null);
   const confirmed = confirmedSnapshot === snapshot;
 
+  const caseStudyCount = questions.filter((q) => q.kind === "case_study").length;
+  const standardCount = questions.length - caseStudyCount;
+
   const update = (index: number, patch: Partial<QuestionDto>) => {
     setQuestions((list) => list.map((q, i) => (i === index ? { ...q, ...patch } : q)));
   };
@@ -171,6 +181,7 @@ function EditorBody({
       ...list,
       {
         id: "",
+        kind: "standard",
         text: "",
         choices: Array.from({ length: certification.questionBank.preferredChoices }, () => ""),
         answerIndex: 0,
@@ -222,8 +233,14 @@ function EditorBody({
           ) : null}
         </p>
         {meta?.generator ? <p className="small muted">{t("admin.bank.generatedBy", { generator: meta.generator })}</p> : null}
-        {questions.length < test.questionsPerTest ? (
-          <Notice kind="warning">{t("admin.bank.notEnough", { required: test.questionsPerTest })}</Notice>
+        {caseStudy ? <p className="small muted">{t("admin.bank.kindCounts", { standard: standardCount, caseStudy: caseStudyCount })}</p> : null}
+        {standardCount < test.questionsPerTest - (caseStudy?.perTest ?? 0) ? (
+          <Notice kind="warning">
+            {t("admin.bank.notEnough", { required: test.questionsPerTest - (caseStudy?.perTest ?? 0) })}
+          </Notice>
+        ) : null}
+        {caseStudy && caseStudyCount < caseStudy.perTest ? (
+          <Notice kind="warning">{t("admin.bank.notEnoughCaseStudy", { required: caseStudy.perTest })}</Notice>
         ) : null}
       </div>
 
@@ -281,6 +298,7 @@ function EditorBody({
           >
             <summary className={styles.summary}>
               <span className={styles.number}>{t("admin.bank.questionNumber", { n: index + 1 })}</span>
+              {question.kind === "case_study" ? <span className="badge badge-info">{t("admin.bank.caseStudyBadge")}</span> : null}
               <span className={styles.excerpt}>{question.text || "…"}</span>
               <span className={styles.correct} title={t("admin.bank.correctMark")}>
                 ✓ {LETTERS[question.answerIndex] ?? "?"}
@@ -288,6 +306,20 @@ function EditorBody({
             </summary>
 
             <div className={styles.body}>
+              {caseStudy ? (
+                <div className="field">
+                  <label htmlFor={`q${index}-kind`}>{t("admin.bank.typeLabel")}</label>
+                  <select
+                    id={`q${index}-kind`}
+                    style={{ maxWidth: "16rem" }}
+                    value={question.kind}
+                    onChange={(e) => update(index, { kind: e.target.value as QuestionKind })}
+                  >
+                    <option value="standard">{t("admin.bank.typeStandard")}</option>
+                    <option value="case_study">{t("admin.bank.typeCaseStudy")}</option>
+                  </select>
+                </div>
+              ) : null}
               <div className="field">
                 <label htmlFor={`q${index}-text`}>{t("admin.bank.questionText")}</label>
                 <textarea

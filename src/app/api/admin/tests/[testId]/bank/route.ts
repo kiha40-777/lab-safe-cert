@@ -28,7 +28,7 @@ export const PUT = route<{ testId: string }>({ auth: "admin" }, async ({ req, ct
   const test = requireTest(ctx.config, params.testId);
   const body = object(await readJson(req));
   const input = parseBankInput(body);
-  const outcome = validateBankInput(ctx, test, input);
+  const outcome = await validateBankInput(ctx, test, input);
   if (!outcome.bank) {
     return json({ error: { code: "bankInvalid" }, validation: toValidationDto(outcome) }, { status: 422 });
   }

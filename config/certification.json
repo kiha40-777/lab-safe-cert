@@ -26,7 +26,11 @@
       "grantsRole": "supervisor",
       "questionsPerTest": 30,
       "expectedBankSize": 60,
-      "passRate": 1
+      "passRate": 1,
+      "caseStudy": {
+        "bankSize": 0,
+        "perTest": 0
+      }
     }
   ]
 }

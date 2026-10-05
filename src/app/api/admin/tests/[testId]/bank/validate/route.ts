@@ -10,5 +10,5 @@ export const dynamic = "force-dynamic";
 export const POST = route<{ testId: string }>({ auth: "admin" }, async ({ req, ctx, params }) => {
   const test = requireTest(ctx.config, params.testId);
   const input = parseBankInput(object(await readJson(req)));
-  return json(toValidationDto(validateBankInput(ctx, test, input)));
+  return json(toValidationDto(await validateBankInput(ctx, test, input)));
 });

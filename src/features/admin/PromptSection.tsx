@@ -10,7 +10,7 @@ import { lookup } from "@/lib/i18n/messages";
 import { type QuestionLanguage, buildPrompt } from "@/lib/prompt/build";
 
 /** The ready-to-paste prompt for an external AI chat, together with the study PDF. */
-export function PromptSection({ test }: { test: TestConfig }) {
+export function PromptSection({ test, caseStudyCount }: { test: TestConfig; caseStudyCount: number }) {
   const { t } = useI18n();
   const id = useId();
   const area = useRef<HTMLTextAreaElement>(null);
@@ -24,9 +24,10 @@ export function PromptSection({ test }: { test: TestConfig }) {
         // The prompt is always English, so the test is named in English too.
         testName: lookup("en", `tests.${test.id}.name`) ?? test.id,
         questionCount: test.expectedBankSize,
+        caseStudyCount,
         choiceCount: certification.questionBank.preferredChoices,
       }),
-    [questionLanguage, test],
+    [questionLanguage, test, caseStudyCount],
   );
 
   async function copy() {
@@ -54,7 +55,13 @@ export function PromptSection({ test }: { test: TestConfig }) {
         </div>
 
         <p className="hint">
-          {t("admin.prompt.info", { count: test.expectedBankSize, choices: certification.questionBank.preferredChoices })}
+          {caseStudyCount > 0
+            ? t("admin.prompt.infoCaseStudy", {
+                count: test.expectedBankSize,
+                choices: certification.questionBank.preferredChoices,
+                caseStudy: caseStudyCount,
+              })
+            : t("admin.prompt.info", { count: test.expectedBankSize, choices: certification.questionBank.preferredChoices })}
         </p>
 
         <div className="field">

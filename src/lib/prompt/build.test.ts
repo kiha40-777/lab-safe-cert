@@ -20,6 +20,7 @@ function exampleOf(prompt: string): string {
 const rules = (choices: number) => ({
   minQuestions: 1,
   expectedQuestions: 2,
+  caseStudy: null,
   minChoices: 2,
   maxChoices: 6,
   preferredChoices: choices,
@@ -69,6 +70,42 @@ describe("buildPrompt", () => {
 
   it("tells the AI not to write choices that break when shuffled", () => {
     expect(buildPrompt(options())).toContain('"all of the above"');
+  });
+});
+
+describe("buildPrompt with case-study questions", () => {
+  it("does not mention case studies when none are wanted", () => {
+    for (const caseStudyCount of [undefined, 0]) {
+      const prompt = buildPrompt(options({ caseStudyCount }));
+      expect(prompt).not.toMatch(/case[- _]study/i);
+      expect(prompt).not.toContain('"type"');
+    }
+  });
+
+  it("asks for the given number of case-study questions on top of the ordinary ones", () => {
+    const prompt = buildPrompt(options({ questionCount: 60, caseStudyCount: 8 }));
+    expect(prompt).toContain("exactly 60 multiple-choice questions");
+    expect(prompt).toContain('exactly 8 case-study questions (described under "Case-study questions" below)');
+    expect(prompt).toContain('"type": "case_study"');
+    expect(prompt).toContain("exactly 60 standard questions and exactly 8 case-study questions");
+  });
+
+  it("still forbids inventing content for case studies", () => {
+    const prompt = buildPrompt(options({ caseStudyCount: 3 }));
+    expect(prompt).toContain("every rule and fact that is needed to answer it must come from the PDF");
+    expect(prompt).toContain("Do not invent rules, numbers, names or procedures");
+  });
+
+  it("is written in English only", () => {
+    expect(buildPrompt(options({ caseStudyCount: 3, questionLanguage: "ja" }))).not.toMatch(/[\u3000-\u30ff\u4e00-\u9fff]/);
+  });
+
+  it("has an example that passes the checks, with one case study", () => {
+    const example = exampleOf(buildPrompt(options({ caseStudyCount: 3 })));
+    const result = validateBankText(example, { ...rules(4), caseStudy: { perTest: 1 } });
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toEqual([]);
+    expect(result.bank?.questions.map((q) => q.kind)).toEqual(["standard", "standard", "case_study"]);
   });
 });
 

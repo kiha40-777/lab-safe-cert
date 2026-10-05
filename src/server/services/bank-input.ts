@@ -4,8 +4,9 @@ import type { BankInfo, ValidationOutcome } from "../bank/types";
 import { questionToDto, validateBankText, validateEditedQuestions } from "../bank/validate";
 import type { AppContext } from "../context";
 import { badRequest } from "../http/errors";
-import { type Obj, object, optionalString, string, stringList } from "../http/input";
+import { type Obj, object, oneOf, optionalString, string, stringList } from "../http/input";
 import { rulesFor } from "./banks";
+import { loadCaseStudyPerTest } from "./case-study";
 
 const MAX_QUESTIONS = 1000;
 
@@ -34,6 +35,7 @@ export function parseBankInput(body: Obj): BankInput {
     const q = object(raw, `questions[${i}]`);
     return {
       id: optionalString(q, "id", 64) ?? "",
+      kind: q.kind === undefined ? "standard" : oneOf(q, "kind", ["standard", "case_study"] as const),
       text: string(q, "text", 5000),
       choices: stringList(q, "choices", 20, 2000),
       answerIndex: typeof q.answerIndex === "number" && Number.isInteger(q.answerIndex) ? q.answerIndex : -1,
@@ -44,8 +46,8 @@ export function parseBankInput(body: Obj): BankInput {
   return { kind: "edited", questions, info: readInfo(body) };
 }
 
-export function validateBankInput(ctx: AppContext, test: TestConfig, input: BankInput): ValidationOutcome {
-  const rules = rulesFor(ctx.config, test);
+export async function validateBankInput(ctx: AppContext, test: TestConfig, input: BankInput): Promise<ValidationOutcome> {
+  const rules = rulesFor(ctx.config, test, await loadCaseStudyPerTest(ctx.db, test));
   return input.kind === "text"
     ? validateBankText(input.text, rules)
     : validateEditedQuestions(input.questions, input.info, rules);

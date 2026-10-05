@@ -5,11 +5,16 @@ import type { AppContext } from "../context";
 import type { Db, Row } from "../db/types";
 import { badRequest } from "../http/errors";
 
-/** The limits a test's question bank is checked against, derived from the certification config. */
-export function rulesFor(config: CertificationConfig, test: TestConfig): BankRules {
+/**
+ * The limits a test's question bank is checked against, derived from the certification config.
+ * `caseStudyPerTest` is how many of the questions of one attempt are case studies (see case-study.ts); the
+ * rest of them are ordinary questions, so that is the least number of ordinary questions the bank needs.
+ */
+export function rulesFor(config: CertificationConfig, test: TestConfig, caseStudyPerTest: number): BankRules {
   return {
-    minQuestions: test.questionsPerTest,
+    minQuestions: test.questionsPerTest - (test.caseStudy ? caseStudyPerTest : 0),
     expectedQuestions: test.expectedBankSize,
+    caseStudy: test.caseStudy ? { perTest: caseStudyPerTest } : null,
     minChoices: config.questionBank.minChoices,
     maxChoices: config.questionBank.maxChoices,
     preferredChoices: config.questionBank.preferredChoices,
@@ -30,7 +35,10 @@ export interface StoredBank {
 
 function parseRow(row: BankRow): StoredBank {
   return {
-    questions: JSON.parse(row.questions_json) as Question[],
+    // banks stored before case studies existed have no kind
+    questions: (JSON.parse(row.questions_json) as Partial<Question>[]).map(
+      (q) => ({ ...q, kind: q.kind ?? "standard" }) as Question,
+    ),
     meta: JSON.parse(row.meta_json) as BankMetaDto,
   };
 }
@@ -44,12 +52,23 @@ export async function loadBank(db: Db, testId: string): Promise<StoredBank | nul
 }
 
 /** Question counts and metadata of every stored bank, without loading the questions. */
-export async function loadBankMetas(db: Db): Promise<Map<string, { count: number; meta: BankMetaDto }>> {
-  const rows = await db.all<{ test_id: string; meta_json: string; question_count: number }>(
-    "SELECT test_id, meta_json, question_count FROM banks",
+export interface StoredBankMeta {
+  /** All questions, case studies included. */
+  count: number;
+  /** How many of them are case studies. */
+  caseStudyCount: number;
+  meta: BankMetaDto;
+}
+
+export async function loadBankMetas(db: Db): Promise<Map<string, StoredBankMeta>> {
+  const rows = await db.all<{ test_id: string; meta_json: string; question_count: number; case_study_count: number }>(
+    "SELECT test_id, meta_json, question_count, case_study_count FROM banks",
   );
   return new Map(
-    rows.map((r) => [r.test_id, { count: r.question_count, meta: JSON.parse(r.meta_json) as BankMetaDto }]),
+    rows.map((r) => [
+      r.test_id,
+      { count: r.question_count, caseStudyCount: r.case_study_count, meta: JSON.parse(r.meta_json) as BankMetaDto },
+    ]),
   );
 }
 
@@ -79,12 +98,20 @@ export async function saveBank(
       reviewConfirmedAt: now,
     };
     await tx.run(
-      `INSERT INTO banks (test_id, questions_json, meta_json, question_count, updated_at)
-       VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO banks (test_id, questions_json, meta_json, question_count, case_study_count, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(test_id) DO UPDATE SET
          questions_json = excluded.questions_json, meta_json = excluded.meta_json,
-         question_count = excluded.question_count, updated_at = excluded.updated_at`,
-      [testId, JSON.stringify(bank.questions), JSON.stringify(meta), bank.questions.length, now],
+         question_count = excluded.question_count, case_study_count = excluded.case_study_count,
+         updated_at = excluded.updated_at`,
+      [
+        testId,
+        JSON.stringify(bank.questions),
+        JSON.stringify(meta),
+        bank.questions.length,
+        bank.questions.filter((q) => q.kind === "case_study").length,
+        now,
+      ],
     );
     return meta;
   });

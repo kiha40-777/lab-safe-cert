@@ -1,8 +1,10 @@
-import type { Issue, ValidationSummary } from "@/lib/types";
+import type { Issue, QuestionKind, ValidationSummary } from "@/lib/types";
 
 /** A question in its stored form. `answerIndex` is 0-based; the JSON file uses letters (A, B, ...). */
 export interface Question {
   id: string;
+  /** Banks stored before case studies existed have no kind; they are read as "standard". */
+  kind: QuestionKind;
   text: string;
   choices: string[];
   answerIndex: number;
@@ -24,10 +26,15 @@ export interface Bank {
 
 /** Limits the question bank of one test is checked against (derived from config/certification.json). */
 export interface BankRules {
-  /** Fewer questions than this is an error (one attempt could not be drawn). */
+  /** Fewer standard questions than this is an error (one attempt could not be drawn). */
   minQuestions: number;
-  /** A different number is only a warning. */
+  /** A different number of standard questions is only a warning. */
   expectedQuestions: number;
+  /**
+   * Case-study questions of the test: fewer than `perTest` in the bank is an error. null for a test
+   * that does not use case studies (such questions in a file are then only reported, never asked).
+   */
+  caseStudy: { perTest: number } | null;
   minChoices: number;
   maxChoices: number;
   preferredChoices: number;

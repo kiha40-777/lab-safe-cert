@@ -46,7 +46,8 @@ The texts below are placeholders. A real file has as many questions as your test
 | `meta.generated_at` | optional | A date, as text. |
 | `meta.source` | optional | Which document the questions are based on. |
 | `questions` | **yes** | The list of questions. (A file that is only a list, without the surrounding object, is also accepted, with a note.) |
-| `questions[].question` | **yes** | The question text, 1 to 1000 characters. Line breaks are kept. |
+| `questions[].question` | **yes** | The question text, 1 to 1000 characters (1 to 3000 for a case study). Line breaks are kept. |
+| `questions[].type` | optional | `"standard"` (the default when missing) or `"case_study"` (also read: `"case-study"`, `"Case Study"`). A **case study** describes a situation inside the question text and asks what to do; it is otherwise a normal question (4 choices, one correct). See below. Anything else is refused. |
 | `questions[].choices` | **yes** | A list of texts: **exactly 4 choices** (every question is a four-choice question; the number comes from `questionBank` in `config/certification.json`, see [DEVELOPMENT.md](DEVELOPMENT.md)). Each 1 to 500 characters, no two the same (ignoring case and width). |
 | `questions[].answer` | **yes** | The **letter** of the correct choice: `"A"` is the first item of `choices`, `"B"` the second, and so on. Small letters and forms like `"B)"` are accepted. **Numbers are refused**, see below. |
 | `questions[].id` | optional | A unique text (or number), up to 64 characters. Missing ids become `q001`, `q002`, ... by position. Two questions with the same id are an error. |
@@ -54,6 +55,31 @@ The texts below are placeholders. A real file has as many questions as your test
 | `questions[].source` | optional | Where the answer can be verified (page or heading of the PDF). Shown after the test. Up to 1000 characters. |
 
 Other keys are ignored. The file (text) may be about 2 MB at most.
+
+### Case-study questions
+
+Some tests (by default the *Supervisor Certification Test*) can end with a few **case studies**.
+Mark them with `"type": "case_study"` and write the situation into `question`, for example (placeholders):
+
+```json
+{
+  "id": "c001",
+  "type": "case_study",
+  "question": "(a short description of a situation in the laboratory, then the question about it)",
+  "choices": ["(choice 1)", "(choice 2)", "(choice 3)", "(choice 4)"],
+  "answer": "C",
+  "explanation": "(why this choice is correct)",
+  "source": "p. 12"
+}
+```
+
+- Case studies are drawn **separately** from the ordinary questions, and they are part of the questions of a test
+  (30 by default): with 3 case studies a test asks 27 ordinary questions in random order and then the 3 case studies,
+  also in random order. The case studies always come last, together. They count for the pass mark like every other
+  question. Test takers see no difference between the two kinds.
+- How many case studies the AI is asked to write, and how many of the questions of a test are case studies, are set
+  in the admin screen (card *Case-study questions*); both can be 0. The bank must hold at least that many case studies
+  and enough ordinary questions for the rest of the test.
 
 ### Why the answer is a letter and not a number
 
@@ -92,6 +118,7 @@ Messages are shown in the interface language; each has a code. **Errors** must b
 | `question.textMissing` / `question.textTooLong` | Question text empty / over 1000 characters. | Fix the text. |
 | `question.choicesMissing` | No `choices` list. | Add it. |
 | `question.choiceEmpty` / `question.choiceTooLong` | A choice is empty, not text, or over 500 characters. | Fix it. |
+| `question.typeInvalid` | `type` is neither `standard` nor `case_study`. | Use one of the two, or remove `type`. |
 | `question.choicesNotExact` | The question does not have exactly 4 choices. | Give it four choices. |
 | `question.choicesTooFew` / `question.choicesTooMany` | Fewer / more choices than `questionBank.minChoices` / `maxChoices` allow (only when those two differ; by default both are 4, so you get `question.choicesNotExact`). | Adjust the number of choices. |
 | `question.choicesDuplicate` | Two choices are the same. | Rewrite one. |
@@ -102,6 +129,8 @@ Messages are shown in the interface language; each has a code. **Errors** must b
 | `question.noteInvalid` | `explanation`/`source` is not text or is too long. | Fix it. |
 | `bank.empty` | There are no questions. | Add questions. |
 | `bank.tooFew` | Fewer questions than one attempt draws (default 30). | Add questions. |
+| `bank.standardTooFew` | The same, for a test that has case studies: only the ordinary (non-case-study) questions are counted, and the test needs 30 minus the number of case studies of them. | Add ordinary questions. |
+| `bank.caseStudyTooFew` | Fewer case studies than one test contains (the number set in the admin screen). | Add case studies, or lower the number (it can be 0). |
 | `bank.duplicateId` | Two questions share an id. | Make ids unique, or remove them (they are generated). |
 
 ### Warnings
@@ -114,6 +143,8 @@ Messages are shown in the interface language; each has a code. **Errors** must b
 | `question.refersToChoices`, `choice.refersToOthers` | The text refers to other choices by letter/number; shuffling breaks that. |
 | `choice.allOfTheAbove` | A choice like "all of the above" / 「上記のすべて」. |
 | `bank.sizeDiffers` | The number of questions differs from the expected size (default 60). The test still works. |
+| `bank.standardSizeDiffers` | The same, for a test that has case studies: only the ordinary questions are counted. |
+| `bank.caseStudyUnused` | The file has case studies, but this test does not use them; they will never be asked. |
 | `bank.duplicateQuestion` | Two questions have the same text. |
 | `bank.answerSkew` | More than half of the correct answers are the same letter (checked for 20+ questions). |
 | `omitted` | "…and N more problems of the same kind": long lists are cut after 8 per kind. |
