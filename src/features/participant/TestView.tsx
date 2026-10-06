@@ -98,9 +98,11 @@ export function TestView({
           <div className="page-head-text">
             <h1>{t.dynamic("tests", `${attempt.testId}.name`)}</h1>
           </div>
-          <button type="button" className="link-button small" onClick={() => void leave()}>
-            {t("test.leave")}
-          </button>
+          <div className="page-head-actions">
+            <button type="button" className="btn btn-sm" onClick={() => void leave()}>
+              {t("test.leave")}
+            </button>
+          </div>
         </header>
 
         {attempt.resumed ? <Notice kind="info">{t("test.restored")}</Notice> : null}

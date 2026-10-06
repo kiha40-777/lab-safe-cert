@@ -1,6 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n/context";
+import { DownloadIcon, ExternalLinkIcon } from "./ButtonIcons";
 import styles from "./PdfViewer.module.css";
 
 /**
@@ -13,10 +14,14 @@ export function PdfViewer({ src, title }: { src: string; title: string }) {
     <div className="stack-sm">
       <iframe className={styles.frame} src={src} title={title} />
       <div className={styles.links}>
-        <a href={src} target="_blank" rel="noopener noreferrer">
+        <a className="btn btn-sm" href={src} target="_blank" rel="noopener noreferrer">
           {t("home.openNewTab")}
+          <ExternalLinkIcon />
         </a>
-        <a href={`${src}${src.includes("?") ? "&" : "?"}download=1`}>{t("home.download")}</a>
+        <a className="btn btn-sm" href={`${src}${src.includes("?") ? "&" : "?"}download=1`}>
+          {t("home.download")}
+          <DownloadIcon />
+        </a>
       </div>
       <p className="hint">{t("home.pdfHelp")}</p>
     </div>

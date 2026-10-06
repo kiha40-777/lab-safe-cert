@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DownloadIcon } from "@/components/DownloadIcon";
+import { DownloadIcon } from "@/components/ButtonIcons";
 import { Notice } from "@/components/Notice";
 import { certification } from "@/lib/config";
 import { useI18n } from "@/lib/i18n/context";

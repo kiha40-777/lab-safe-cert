@@ -1,0 +1,10 @@
+/* The button as wide as the space it is given (see the `wide` property). */
+.wide {
+  width: 100%;
+}
+
+/* The input is hidden but stays in the page, so the keyboard reaches it: its focus is shown on the button. */
+.input:focus-visible + .button {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

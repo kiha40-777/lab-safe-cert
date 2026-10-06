@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { LogoutIcon } from "@/components/ButtonIcons";
 import { ErrorNotice } from "@/components/ErrorNotice";
 import { Loading } from "@/components/Loading";
 import { LoginForm } from "@/components/LoginForm";
@@ -63,6 +64,7 @@ export function ParticipantApp() {
             {s.member ? <span className="topbar-user">{s.member.name}</span> : null}
             <button type="button" className="btn btn-sm" onClick={() => void logout()}>
               {t("common.logout")}
+              <LogoutIcon />
             </button>
           </>
         ) : null}

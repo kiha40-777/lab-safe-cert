@@ -1,0 +1,6 @@
+/* The file button is as wide as the Preview and Delete buttons together: every row in this column takes
+   the width of the widest one, which is the row of the two buttons. */
+.group {
+  width: fit-content;
+  max-width: 100%;
+}

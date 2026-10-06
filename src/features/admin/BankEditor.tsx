@@ -2,7 +2,7 @@
 
 import { useId, useMemo, useState } from "react";
 import { ErrorNotice } from "@/components/ErrorNotice";
-import { DownloadIcon } from "@/components/DownloadIcon";
+import { DownloadIcon } from "@/components/ButtonIcons";
 import { Loading } from "@/components/Loading";
 import { Notice } from "@/components/Notice";
 import { api, ApiClientError } from "@/lib/api";

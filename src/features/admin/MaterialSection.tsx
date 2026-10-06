@@ -1,13 +1,16 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useId, useState } from "react";
+import { PdfFileIcon, TrashIcon } from "@/components/ButtonIcons";
 import { ConfirmDialog } from "@/components/Dialog";
 import { ErrorNotice } from "@/components/ErrorNotice";
+import { FilePicker } from "@/components/FilePicker";
 import { PdfViewer } from "@/components/PdfViewer";
 import { api } from "@/lib/api";
 import { formatBytes } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/context";
 import type { MaterialInfo } from "@/lib/types";
+import styles from "./MaterialSection.module.css";
 
 /** Upload, preview, replace and remove the study PDF of a test. */
 export function MaterialSection({
@@ -21,7 +24,6 @@ export function MaterialSection({
 }) {
   const { t, formatDateTime } = useI18n();
   const id = useId();
-  const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [preview, setPreview] = useState(false);
@@ -38,7 +40,6 @@ export function MaterialSection({
       setError(failure);
     } finally {
       setBusy(false);
-      if (input.current) input.current.value = "";
     }
   }
 
@@ -73,34 +74,34 @@ export function MaterialSection({
           <p className="muted">{t("admin.material.none")}</p>
         )}
 
-        <div className="field">
-          <label htmlFor={`${id}-file`}>{material ? t("admin.material.replace") : t("admin.material.upload")}</label>
-          <input
-            id={`${id}-file`}
-            ref={input}
-            type="file"
-            accept="application/pdf,.pdf"
-            disabled={busy}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) void upload(file);
-            }}
-          />
-          {busy ? <span className="hint">{t("admin.material.uploading")}</span> : null}
+        <div className={`stack ${styles.group}`}>
+          <div className="field">
+            <label htmlFor={`${id}-file`}>{material ? t("admin.material.replace") : t("admin.material.upload")}</label>
+            <FilePicker
+              id={`${id}-file`}
+              accept="application/pdf,.pdf"
+              icon={<PdfFileIcon />}
+              wide
+              disabled={busy}
+              onFile={(file) => void upload(file)}
+            />
+          </div>
+
+          {material ? (
+            <div className="row-wrap">
+              <button type="button" className="btn btn-sm" onClick={() => setPreview((shown) => !shown)} aria-expanded={preview}>
+                {t("admin.material.preview")}
+              </button>
+              <button type="button" className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(true)} disabled={busy}>
+                {t("common.delete")}
+                <TrashIcon />
+              </button>
+            </div>
+          ) : null}
         </div>
 
+        {busy ? <span className="hint">{t("admin.material.uploading")}</span> : null}
         <ErrorNotice error={error} />
-
-        {material ? (
-          <div className="row-wrap">
-            <button type="button" className="btn btn-sm" onClick={() => setPreview((shown) => !shown)} aria-expanded={preview}>
-              {t("admin.material.preview")}
-            </button>
-            <button type="button" className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(true)} disabled={busy}>
-              {t("common.delete")}
-            </button>
-          </div>
-        ) : null}
         {material && preview ? <PdfViewer src={src} title={t("admin.material.preview")} /> : null}
 
         <ConfirmDialog

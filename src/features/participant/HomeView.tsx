@@ -52,9 +52,11 @@ export function HomeView({
               <dd>{t.dynamic("roles", home.member.role)}</dd>
             </dl>
           </div>
-          <button type="button" className="link-button small" onClick={onSwitchUser}>
-            {t("home.notYou")}
-          </button>
+          <div className="page-head-actions">
+            <button type="button" className="btn btn-sm" onClick={onSwitchUser}>
+              {t("home.notYou")}
+            </button>
+          </div>
         </header>
 
         {home.activeAttempt ? (

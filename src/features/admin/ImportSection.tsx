@@ -1,7 +1,9 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useId, useState } from "react";
+import { JsonFileIcon } from "@/components/ButtonIcons";
 import { ErrorNotice } from "@/components/ErrorNotice";
+import { FilePicker } from "@/components/FilePicker";
 import { Notice } from "@/components/Notice";
 import { api } from "@/lib/api";
 import type { TestConfig } from "@/lib/certification";
@@ -26,7 +28,6 @@ export function ImportSection({
 }) {
   const { t } = useI18n();
   const id = useId();
-  const fileInput = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
   const [result, setResult] = useState<ValidationResultDto | null>(null);
@@ -52,7 +53,6 @@ export function ImportSection({
     setText(content);
     setFileName(file.name);
     await check(content);
-    if (fileInput.current) fileInput.current.value = "";
   }
 
   function open() {
@@ -80,16 +80,12 @@ export function ImportSection({
       <div className="stack">
         <div className="field">
           <label htmlFor={`${id}-file`}>{t("admin.bank.chooseFile")}</label>
-          <input
+          <FilePicker
             id={`${id}-file`}
-            ref={fileInput}
-            type="file"
             accept=".json,application/json,text/plain"
+            icon={<JsonFileIcon />}
             disabled={busy}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) void readFile(file);
-            }}
+            onFile={(file) => void readFile(file)}
           />
           {fileName ? <span className="hint">{t("admin.bank.fileRead", { name: fileName })}</span> : null}
         </div>

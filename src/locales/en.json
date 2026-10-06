@@ -31,6 +31,7 @@
     "logout": "Log out",
     "language": "Language",
     "retry": "Try again",
+    "chooseFile": "Choose a file",
     "yes": "Yes",
     "no": "No",
     "more": "…and {count} more",
