@@ -82,12 +82,22 @@ describe("buildPrompt with case-study questions", () => {
     }
   });
 
-  it("asks for the given number of case-study questions on top of the ordinary ones", () => {
-    const prompt = buildPrompt(options({ questionCount: 60, caseStudyCount: 8 }));
-    expect(prompt).toContain("exactly 60 multiple-choice questions");
-    expect(prompt).toContain('exactly 8 case-study questions (described under "Case-study questions" below)');
+  it("asks for the total, made of the ordinary questions and the case studies (60 = 50 + 10)", () => {
+    const prompt = buildPrompt(options({ questionCount: 50, caseStudyCount: 10 }));
+    expect(prompt).toContain('exactly 60 multiple-choice questions in all: 50 "standard" questions');
+    expect(prompt).toContain('and 10 case-study questions (described under "Case-study questions" below)');
+    expect(prompt).toContain("The 60 questions are made of 50 standard questions and 10 case-study questions");
     expect(prompt).toContain('"type": "case_study"');
-    expect(prompt).toContain("exactly 60 standard questions and exactly 8 case-study questions");
+    expect(prompt).toContain("exactly 60 questions in all: 50 standard questions and 10 case-study questions");
+  });
+
+  it("says \"1 case-study question\", not \"1 case-study questions\"", () => {
+    const prompt = buildPrompt(options({ questionCount: 3, caseStudyCount: 1 }));
+    expect(prompt).toContain('exactly 4 multiple-choice questions in all: 3 "standard" questions');
+    expect(prompt).toContain("and 1 case-study question (described");
+    expect(prompt).toContain("The 4 questions are made of 3 standard questions and 1 case-study question.");
+    expect(prompt).toContain("exactly 4 questions in all: 3 standard questions and 1 case-study question");
+    expect(prompt).not.toMatch(/\b1 (case-study|standard|multiple-choice) questions\b/);
   });
 
   it("still forbids inventing content for case studies", () => {
@@ -102,7 +112,7 @@ describe("buildPrompt with case-study questions", () => {
 
   it("has an example that passes the checks, with one case study", () => {
     const example = exampleOf(buildPrompt(options({ caseStudyCount: 3 })));
-    const result = validateBankText(example, { ...rules(4), caseStudy: { perTest: 1 } });
+    const result = validateBankText(example, { ...rules(4), caseStudy: { perTest: 1, expected: 1 } });
     expect(result.errors).toEqual([]);
     expect(result.warnings).toEqual([]);
     expect(result.bank?.questions.map((q) => q.kind)).toEqual(["standard", "standard", "case_study"]);

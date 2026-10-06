@@ -14,7 +14,11 @@ export interface PromptOptions {
   testName: string;
   /** Number of ordinary questions to ask for. */
   questionCount: number;
-  /** Number of case-study questions to ask for in addition (0 = none; the prompt then does not mention them). */
+  /**
+   * Number of case-study questions to ask for, on top of `questionCount` here. The admin screen counts them
+   * as part of the question set (60 with 6 case studies = 54 ordinary + 6), so the caller subtracts them.
+   * 0 = none; the prompt then does not mention them.
+   */
   caseStudyCount?: number;
   choiceCount: number;
 }
@@ -72,6 +76,9 @@ function exampleJson(choiceCount: number, withCaseStudy: boolean): string {
   );
 }
 
+/** "1 question", "2 questions". */
+const plural = (n: number, noun: string): string => `${n} ${noun}${n === 1 ? "" : "s"}`;
+
 function languageName(question: QuestionLanguage): string {
   if (question === "same") return "the same language as the PDF";
   return question === "ja" ? "Japanese" : "English";
@@ -81,14 +88,16 @@ export function buildPrompt(o: PromptOptions): string {
   const caseStudies = o.caseStudyCount ?? 0;
   const withCaseStudy = caseStudies > 0;
 
+  const total = o.questionCount + caseStudies;
+
   const task = withCaseStudy
-    ? `write exactly ${o.questionCount} multiple-choice questions that check whether a reader has understood it ("standard" questions) and, in addition, exactly ${caseStudies} case-study questions (described under "Case-study questions" below).`
-    : `write exactly ${o.questionCount} multiple-choice questions that check whether a reader has understood it.`;
+    ? `write exactly ${plural(total, "multiple-choice question")} in all: ${plural(o.questionCount, '"standard" question')} that check whether a reader has understood it, and ${plural(caseStudies, "case-study question")} (described under "Case-study questions" below).`
+    : `write exactly ${plural(o.questionCount, "multiple-choice question")} that check whether a reader has understood it.`;
 
   const caseStudySection = withCaseStudy
     ? `
 # Case-study questions
-Besides the ${o.questionCount} standard questions, write exactly ${caseStudies} case-study questions. Give every case-study question "type": "case_study" and every other question "type": "standard".
+The ${total} questions are made of ${plural(o.questionCount, "standard question")} and ${plural(caseStudies, "case-study question")}. Give every case-study question "type": "case_study" and every other question "type": "standard".
 - A case-study question describes ONE short, realistic situation in a laboratory (about 3 to 6 sentences, written inside the "question" text) and then asks what should be done, or what is wrong. It is an ordinary multiple-choice question otherwise: exactly ${o.choiceCount} choices and exactly ONE correct choice.
 - The situation itself may be made up, but every rule and fact that is needed to answer it must come from the PDF, and the correct choice must follow directly from the PDF. Do not invent rules, numbers, names or procedures.
 - Do not repeat the situation of another question. Rules 3 to 8 apply to case-study questions as well.
@@ -99,8 +108,8 @@ Besides the ${o.questionCount} standard questions, write exactly ${caseStudies} 
   const typeNote = withCaseStudy ? '\n- "type" is "standard" or "case_study" (see "Case-study questions").' : "";
   const idNote = withCaseStudy ? '("q001", "q002", ... and "c001", "c002", ...)' : '("q001", "q002", ...)';
   const countCheck = withCaseStudy
-    ? `exactly ${o.questionCount} standard questions and exactly ${caseStudies} case-study questions`
-    : `exactly ${o.questionCount} questions`;
+    ? `exactly ${plural(total, "question")} in all: ${plural(o.questionCount, "standard question")} and ${plural(caseStudies, "case-study question")}`
+    : `exactly ${plural(o.questionCount, "question")}`;
 
   return `You are helping an iGEM team turn a study document into a knowledge test about laboratory safety.
 

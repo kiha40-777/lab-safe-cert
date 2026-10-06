@@ -7,6 +7,7 @@ import { attemptsCsv, csvCell, resultsCsv } from "./export";
 import { createMember } from "./members";
 import { getAdminOverview } from "./overview";
 import { findTest } from "@/lib/certification";
+import { defaultCounts } from "@/lib/counts";
 import type { Bank } from "../bank/types";
 
 type Ctx = Awaited<ReturnType<typeof makeTestContext>>;
@@ -14,7 +15,7 @@ type Ctx = Awaited<ReturnType<typeof makeTestContext>>;
 async function withBank(ctx: Ctx) {
   const test = findTest(ctx.config, "participant");
   if (!test) throw new Error("missing test");
-  const outcome = validateBankText(makeBankJson(60), rulesFor(ctx.config, test, 0));
+  const outcome = validateBankText(makeBankJson(60), rulesFor(ctx.config, test, defaultCounts(test)));
   await saveBank(ctx, "participant", outcome.bank as Bank, { kind: "import", reviewConfirmed: true });
 }
 

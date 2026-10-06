@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ErrorNotice } from "@/components/ErrorNotice";
 import { DownloadIcon } from "@/components/ButtonIcons";
 import { Loading } from "@/components/Loading";
@@ -8,9 +8,10 @@ import { Notice } from "@/components/Notice";
 import { api, ApiClientError } from "@/lib/api";
 import type { TestConfig } from "@/lib/certification";
 import { certification } from "@/lib/config";
-import { useLoad } from "@/lib/hooks";
+import { type TestCounts, standardBankSize, standardPerTest } from "@/lib/counts";
+import { useLeaveWarning, useLoad } from "@/lib/hooks";
 import { useI18n } from "@/lib/i18n/context";
-import type { BankDto, BankMetaDto, CaseStudyInfo, QuestionDto, QuestionKind, ValidationResultDto } from "@/lib/types";
+import type { BankDto, BankMetaDto, QuestionDto, QuestionKind, ValidationResultDto } from "@/lib/types";
 import styles from "./BankEditor.module.css";
 import { IssueList } from "./IssueList";
 
@@ -34,13 +35,16 @@ type Saved = "import" | "edit";
 
 /**
  * Step 3: the questions are reviewed and edited here, either an opened file (`draft`) or the stored
- * bank. They are only saved after a person confirms that every question and answer was checked.
+ * bank, or written from scratch (an empty draft). They are only saved after a person confirms that every
+ * question and answer was checked.
  */
 export function BankEditor({
   test,
   draft,
   existingCount,
-  caseStudy,
+  counts,
+  supportsCaseStudy,
+  onWriteByHand,
   onChanged,
   onDraftSaved,
   onDraftDiscarded,
@@ -49,8 +53,12 @@ export function BankEditor({
   draft: Draft | null;
   /** Number of questions in the stored bank (0 when there is none); a saved draft replaces them. */
   existingCount: number;
-  /** null when the test has no case-study questions. */
-  caseStudy: CaseStudyInfo | null;
+  /** The numbers of the test: how many questions the set should hold and how many a test needs. */
+  counts: TestCounts;
+  /** Whether the test can have case-study questions. */
+  supportsCaseStudy: boolean;
+  /** Starts an empty draft, to write the questions by hand. */
+  onWriteByHand: () => void;
   onChanged: () => Promise<void>;
   onDraftSaved: () => void;
   onDraftDiscarded: () => void;
@@ -79,7 +87,8 @@ export function BankEditor({
           meta={null}
           isDraft
           existingCount={existingCount}
-          caseStudy={caseStudy}
+          counts={counts}
+          supportsCaseStudy={supportsCaseStudy}
           justSaved={null}
           onSaved={async () => {
             await afterSave("import");
@@ -108,13 +117,21 @@ export function BankEditor({
                 meta={loaded.data.bank.meta}
                 isDraft={false}
                 existingCount={existingCount}
-                caseStudy={caseStudy}
+                counts={counts}
+                supportsCaseStudy={supportsCaseStudy}
                 justSaved={justSaved}
                 onSaved={() => afterSave("edit")}
                 onDiscardDraft={onDraftDiscarded}
               />
             ) : (
-              <p className="muted">{t("admin.bank.none")}</p>
+              <div className="stack">
+                <p className="muted">{t("admin.bank.none")}</p>
+                <div>
+                  <button type="button" className="btn" onClick={onWriteByHand}>
+                    {t("admin.bank.writeByHand")}
+                  </button>
+                </div>
+              </div>
             )
           ) : null}
         </>
@@ -130,7 +147,8 @@ function EditorBody({
   meta,
   isDraft,
   existingCount,
-  caseStudy,
+  counts,
+  supportsCaseStudy,
   justSaved,
   onSaved,
   onDiscardDraft,
@@ -142,7 +160,8 @@ function EditorBody({
   meta: BankMetaDto | null;
   isDraft: boolean;
   existingCount: number;
-  caseStudy: CaseStudyInfo | null;
+  counts: TestCounts;
+  supportsCaseStudy: boolean;
   justSaved: Saved | null;
   onSaved: () => Promise<void>;
   onDiscardDraft: () => void;
@@ -165,8 +184,21 @@ function EditorBody({
   const [confirmedSnapshot, setConfirmedSnapshot] = useState<string | null>(null);
   const confirmed = confirmedSnapshot === snapshot;
 
+  useLeaveWarning(dirty, t("admin.bank.leaveWarning"));
+
   const caseStudyCount = questions.filter((q) => q.kind === "case_study").length;
   const standardCount = questions.length - caseStudyCount;
+  const standardNeeded = standardPerTest(counts);
+
+  // A question that was just added is scrolled into view and its text field gets the cursor.
+  const focusAfterAdd = useRef<number | null>(null);
+  useEffect(() => {
+    if (focusAfterAdd.current === null) return;
+    const field = document.getElementById(`q${focusAfterAdd.current}-text`);
+    focusAfterAdd.current = null;
+    field?.scrollIntoView({ block: "center" });
+    field?.focus({ preventScroll: true });
+  }, [questions.length]);
 
   const update = (index: number, patch: Partial<QuestionDto>) => {
     setQuestions((list) => list.map((q, i) => (i === index ? { ...q, ...patch } : q)));
@@ -177,12 +209,13 @@ function EditorBody({
       list.map((q, i) => (i === index ? { ...q, choices: q.choices.map((c, k) => (k === choiceIndex ? value : c)) } : q)),
     );
 
-  function addQuestion() {
+  function addQuestion(kind: QuestionKind) {
+    focusAfterAdd.current = questions.length;
     setQuestions((list) => [
       ...list,
       {
         id: "",
-        kind: "standard",
+        kind,
         text: "",
         choices: Array.from({ length: certification.questionBank.preferredChoices }, () => ""),
         answerIndex: 0,
@@ -234,14 +267,21 @@ function EditorBody({
           ) : null}
         </p>
         {meta?.generator ? <p className="small muted">{t("admin.bank.generatedBy", { generator: meta.generator })}</p> : null}
-        {caseStudy ? <p className="small muted">{t("admin.bank.kindCounts", { standard: standardCount, caseStudy: caseStudyCount })}</p> : null}
-        {standardCount < test.questionsPerTest - (caseStudy?.perTest ?? 0) ? (
-          <Notice kind="warning">
-            {t("admin.bank.notEnough", { required: test.questionsPerTest - (caseStudy?.perTest ?? 0) })}
-          </Notice>
+        <p className="small muted">
+          {supportsCaseStudy
+            ? t("admin.bank.progressKinds", {
+                standard: standardCount,
+                standardTarget: standardBankSize(counts),
+                caseStudy: caseStudyCount,
+                caseStudyTarget: counts.caseStudyBankSize,
+              })
+            : t("admin.bank.progressTotal", { count: questions.length, target: counts.bankSize })}
+        </p>
+        {standardCount < standardNeeded ? (
+          <Notice kind="warning">{t("admin.bank.notEnough", { required: standardNeeded })}</Notice>
         ) : null}
-        {caseStudy && caseStudyCount < caseStudy.perTest ? (
-          <Notice kind="warning">{t("admin.bank.notEnoughCaseStudy", { required: caseStudy.perTest })}</Notice>
+        {supportsCaseStudy && caseStudyCount < counts.caseStudyPerTest ? (
+          <Notice kind="warning">{t("admin.bank.notEnoughCaseStudy", { required: counts.caseStudyPerTest })}</Notice>
         ) : null}
       </div>
 
@@ -307,7 +347,7 @@ function EditorBody({
             </summary>
 
             <div className={styles.body}>
-              {caseStudy ? (
+              {supportsCaseStudy ? (
                 <div className="field">
                   <label htmlFor={`q${index}-kind`}>{t("admin.bank.typeLabel")}</label>
                   <select
@@ -421,9 +461,14 @@ function EditorBody({
             <span>{t("admin.bank.reviewConfirm")}</span>
           </label>
         ) : null}
-        <button type="button" className="btn" onClick={addQuestion}>
+        <button type="button" className="btn" onClick={() => addQuestion("standard")}>
           {t("admin.bank.addQuestion")}
         </button>
+        {supportsCaseStudy ? (
+          <button type="button" className="btn" onClick={() => addQuestion("case_study")}>
+            {t("admin.bank.addCaseStudy")}
+          </button>
+        ) : null}
         <span className="spacer" />
         {changed ? <span className="small muted">{t("admin.bank.unsaved")}</span> : null}
         <button

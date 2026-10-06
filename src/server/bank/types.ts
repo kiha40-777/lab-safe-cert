@@ -31,10 +31,11 @@ export interface BankRules {
   /** A different number of standard questions is only a warning. */
   expectedQuestions: number;
   /**
-   * Case-study questions of the test: fewer than `perTest` in the bank is an error. null for a test
-   * that does not use case studies (such questions in a file are then only reported, never asked).
+   * Case-study questions of the test: fewer than `perTest` in the bank is an error, a number other than
+   * `expected` only a warning. null for a test that does not use case studies (such questions in a file are
+   * then only reported, never asked).
    */
-  caseStudy: { perTest: number } | null;
+  caseStudy: { perTest: number; expected: number } | null;
   minChoices: number;
   maxChoices: number;
   preferredChoices: number;

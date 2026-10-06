@@ -6,7 +6,7 @@ import type { AppContext } from "../context";
 import { badRequest } from "../http/errors";
 import { type Obj, object, oneOf, optionalString, string, stringList } from "../http/input";
 import { rulesFor } from "./banks";
-import { loadCaseStudyPerTest } from "./case-study";
+import { loadCounts } from "./counts";
 
 const MAX_QUESTIONS = 1000;
 
@@ -47,7 +47,7 @@ export function parseBankInput(body: Obj): BankInput {
 }
 
 export async function validateBankInput(ctx: AppContext, test: TestConfig, input: BankInput): Promise<ValidationOutcome> {
-  const rules = rulesFor(ctx.config, test, await loadCaseStudyPerTest(ctx.db, test));
+  const rules = rulesFor(ctx.config, test, await loadCounts(ctx.db, test));
   return input.kind === "text"
     ? validateBankText(input.text, rules)
     : validateEditedQuestions(input.questions, input.info, rules);

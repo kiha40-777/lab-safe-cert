@@ -56,6 +56,32 @@ export function useLoad<T>(load: () => Promise<T>): Loaded<T> {
   return { ...state, reload, setData };
 }
 
+/**
+ * While `active`, leaving the page asks first: closing or reloading it, and following a link to another section
+ * of the same page (a "#..." link; the skip link to the main content is not leaving). Used while there are
+ * things typed in that are not saved yet.
+ */
+export function useLeaveWarning(active: boolean, message: string): void {
+  useEffect(() => {
+    if (!active) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
+    const onClick = (event: MouseEvent) => {
+      const link = (event.target as Element | null)?.closest?.("a[href^='#']");
+      if (!link || event.defaultPrevented || link.getAttribute("href") === "#main") return;
+      if (!window.confirm(message)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, [active, message]);
+}
+
 /** Calls `handler` when any API call was refused because the login expired. */
 export function useUnauthorized(handler: () => void): void {
   const ref = useRef(handler);

@@ -8,7 +8,7 @@ checker.
 
 ## Example
 
-The texts below are placeholders. A real file has as many questions as your test needs (by default 60, at least 30).
+The texts below are placeholders. A real file has as many questions as the number you set for the test in the admin screen (by default 60, at least 30 for a test of 30).
 
 ```json
 {
@@ -58,7 +58,8 @@ Other keys are ignored. The file (text) may be about 2 MB at most.
 
 ### Case-study questions
 
-Some tests (by default the *Supervisor Certification Test*) can end with a few **case studies**.
+Some tests (by default the *Supervisor Certification Test*) can end with a few **case studies**, which are always part of
+the totals of the test: a set of 60 questions with 10 case studies holds 50 ordinary questions.
 Mark them with `"type": "case_study"` and write the situation into `question`, for example (placeholders):
 
 ```json
@@ -77,9 +78,9 @@ Mark them with `"type": "case_study"` and write the situation into `question`, f
   (30 by default): with 3 case studies a test asks 27 ordinary questions in random order and then the 3 case studies,
   also in random order. The case studies always come last, together. They count for the pass mark like every other
   question. Test takers see no difference between the two kinds.
-- How many case studies the AI is asked to write, and how many of the questions of a test are case studies, are set
-  in the admin screen (card *Case-study questions*); both can be 0. The bank must hold at least that many case studies
-  and enough ordinary questions for the rest of the test.
+- How many of the questions of the set, and of a test, are case studies is set in the admin screen (card *Number of
+  questions*, row *Case studies among them*; by default 6 of 60 and 3 of 30); both can be 0. The bank must hold at least
+  as many case studies as a test asks and enough ordinary questions for the rest of the test.
 
 ### Why the answer is a letter and not a number
 
@@ -128,8 +129,8 @@ Messages are shown in the interface language; each has a code. **Errors** must b
 | `answer.outOfRange` | The letter is beyond the last choice (`"E"` with 4 choices). | Use a letter of an existing choice. |
 | `question.noteInvalid` | `explanation`/`source` is not text or is too long. | Fix it. |
 | `bank.empty` | There are no questions. | Add questions. |
-| `bank.tooFew` | Fewer questions than one attempt draws (default 30). | Add questions. |
-| `bank.standardTooFew` | The same, for a test that has case studies: only the ordinary (non-case-study) questions are counted, and the test needs 30 minus the number of case studies of them. | Add ordinary questions. |
+| `bank.tooFew` | Fewer questions than one attempt draws (the number set for the test, by default 30). | Add questions. |
+| `bank.standardTooFew` | The same, for a test that has case studies: only the ordinary (non-case-study) questions are counted, and the test needs its number of questions minus its case studies (27 of 30 with 3). | Add ordinary questions. |
 | `bank.caseStudyTooFew` | Fewer case studies than one test contains (the number set in the admin screen). | Add case studies, or lower the number (it can be 0). |
 | `bank.duplicateId` | Two questions share an id. | Make ids unique, or remove them (they are generated). |
 
@@ -142,8 +143,9 @@ Messages are shown in the interface language; each has a code. **Errors** must b
 | `question.choiceCountDiffers` | A question has a different number of choices than `questionBank.preferredChoices` (only possible when the limits allow a range; by default exactly 4 are required). |
 | `question.refersToChoices`, `choice.refersToOthers` | The text refers to other choices by letter/number; shuffling breaks that. |
 | `choice.allOfTheAbove` | A choice like "all of the above" / 「上記のすべて」. |
-| `bank.sizeDiffers` | The number of questions differs from the expected size (default 60). The test still works. |
-| `bank.standardSizeDiffers` | The same, for a test that has case studies: only the ordinary questions are counted. |
+| `bank.sizeDiffers` | The number of questions differs from the size of the question set set for the test (default 60). The test still works. |
+| `bank.standardSizeDiffers` | The same, for a test that has case studies: only the ordinary questions are counted (54 of 60 with 6 case studies). |
+| `bank.caseStudySizeDiffers` | The number of case studies differs from the one set for the question set (default 6). The test still works. |
 | `bank.caseStudyUnused` | The file has case studies, but this test does not use them; they will never be asked. |
 | `bank.duplicateQuestion` | Two questions have the same text. |
 | `bank.answerSkew` | More than half of the correct answers are the same letter (checked for 20+ questions). |

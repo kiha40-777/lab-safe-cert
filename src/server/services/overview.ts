@@ -1,9 +1,10 @@
+import { defaultCounts } from "@/lib/counts";
 import type { AdminOverview, MemberOverview, MemberTestStats } from "@/lib/types";
 import type { AppContext } from "../context";
 import type { Db } from "../db/types";
 import { SUMMARY_COLUMNS, type SummaryRow, toSummary } from "./attempts";
 import { loadBankMetas } from "./banks";
-import { isBankReady, loadCaseStudyPerTests } from "./case-study";
+import { isBankReady, loadAllCounts } from "./counts";
 import { listMaterialInfos } from "./materials";
 import { listMemberRows, toMemberDto } from "./members";
 
@@ -37,11 +38,11 @@ export function statsFor(testId: string, attempts: SummaryRow[]): MemberTestStat
 
 /** Everything the admin dashboard shows: members with their progress, the state of each test, recent activity. */
 export async function getAdminOverview(ctx: AppContext): Promise<AdminOverview> {
-  const [memberRows, attempts, banks, caseStudyPerTest, materials] = await Promise.all([
+  const [memberRows, attempts, banks, allCounts, materials] = await Promise.all([
     listMemberRows(ctx.db),
     loadSubmittedAttempts(ctx.db),
     loadBankMetas(ctx.db),
-    loadCaseStudyPerTests(ctx.db, ctx.config),
+    loadAllCounts(ctx.db, ctx.config),
     listMaterialInfos(ctx.db),
   ]);
 
@@ -72,15 +73,16 @@ export async function getAdminOverview(ctx: AppContext): Promise<AdminOverview> 
     members,
     tests: ctx.config.tests.map((test) => {
       const bank = banks.get(test.id);
-      const perTest = caseStudyPerTest.get(test.id) ?? 0;
+      const counts = allCounts.get(test.id) ?? defaultCounts(test);
       const caseStudy = bank?.caseStudyCount ?? 0;
       return {
         testId: test.id,
         questionCount: bank?.count ?? 0,
-        ready: isBankReady(test, perTest, { total: bank?.count ?? 0, caseStudy }),
+        ready: isBankReady(counts, { total: bank?.count ?? 0, caseStudy }),
         bank: bank?.meta ?? null,
         material: materials.get(test.id) ?? null,
-        caseStudy: test.caseStudy ? { perTest, available: caseStudy } : null,
+        counts,
+        caseStudyAvailable: test.caseStudy ? caseStudy : null,
       };
     }),
     recentAttempts: attempts

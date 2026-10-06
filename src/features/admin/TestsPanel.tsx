@@ -3,10 +3,11 @@
 import { useRef, useState } from "react";
 import { findTest } from "@/lib/certification";
 import { certification } from "@/lib/config";
+import { defaultCounts } from "@/lib/counts";
 import { useI18n } from "@/lib/i18n/context";
 import type { AdminOverview } from "@/lib/types";
 import { BankEditor, type Draft } from "./BankEditor";
-import { CaseStudySection } from "./CaseStudySection";
+import { CountsSection } from "./CountsSection";
 import { ImportSection } from "./ImportSection";
 import { MaterialSection } from "./MaterialSection";
 import { PromptSection } from "./PromptSection";
@@ -40,11 +41,13 @@ function TestWorkspace({
   const test = findTest(certification, testId);
   // Questions from an uploaded file that wait in step 3 for review; nothing is stored until they are confirmed there.
   const [draft, setDraft] = useState<Draft | null>(null);
-  // How many case-study questions the AI is asked for (only affects the prompt); starts at the default of the config file.
-  const [caseStudiesToWrite, setCaseStudiesToWrite] = useState(test?.caseStudy?.bankSize ?? 0);
   const editor = useRef<HTMLDivElement>(null);
   if (!test) return null;
   const info = overview.tests.find((x) => x.testId === test.id);
+  const counts = info?.counts ?? defaultCounts(test);
+
+  /** Step 3 is further down the page; take the admin there. */
+  const showEditor = () => window.setTimeout(() => editor.current?.scrollIntoView({ block: "start" }), 0);
 
   return (
     <div className="stack-lg">
@@ -57,30 +60,16 @@ function TestWorkspace({
       </header>
 
       <div>
+        <CountsSection key={`counts-${test.id}`} test={test} counts={counts} onChanged={reload} />
         <MaterialSection key={`material-${test.id}`} testId={test.id} material={info?.material ?? null} onChanged={reload} />
-        {test.caseStudy && info?.caseStudy ? (
-          <CaseStudySection
-            key={`case-study-${test.id}`}
-            test={test}
-            info={info.caseStudy}
-            generateCount={caseStudiesToWrite}
-            onGenerateCountChange={setCaseStudiesToWrite}
-            onChanged={reload}
-          />
-        ) : null}
-        <PromptSection
-          key={`prompt-${test.id}`}
-          test={test}
-          caseStudyCount={test.caseStudy ? caseStudiesToWrite : 0}
-        />
+        <PromptSection key={`prompt-${test.id}`} test={test} counts={counts} />
         <ImportSection
           key={`import-${test.id}`}
           test={test}
           hasDraft={draft !== null}
           onOpen={(questions, draftInfo) => {
             setDraft((previous) => ({ serial: (previous?.serial ?? 0) + 1, questions, info: draftInfo }));
-            // Step 3 is further down the page; take the admin there.
-            window.setTimeout(() => editor.current?.scrollIntoView({ block: "start" }), 0);
+            showEditor();
           }}
         />
         <div ref={editor} className="section">
@@ -89,7 +78,17 @@ function TestWorkspace({
             test={test}
             draft={draft}
             existingCount={info?.questionCount ?? 0}
-            caseStudy={info?.caseStudy ?? null}
+            counts={counts}
+            supportsCaseStudy={test.caseStudy !== undefined}
+            onWriteByHand={() => {
+              // No questions yet: they are written in the editor, one by one.
+              setDraft((previous) => ({
+                serial: (previous?.serial ?? 0) + 1,
+                questions: [],
+                info: { generator: "", generatedAt: "", source: "" },
+              }));
+              showEditor();
+            }}
             onChanged={reload}
             onDraftSaved={() => setDraft(null)}
             onDraftDiscarded={() => setDraft(null)}

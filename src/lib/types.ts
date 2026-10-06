@@ -1,5 +1,6 @@
 // Shapes of the JSON exchanged between the browser and the API.
 // Shared by the server and the client; keep this file free of runtime code.
+import type { TestCounts } from "./counts";
 
 export type Scope = "participant" | "admin";
 
@@ -146,14 +147,6 @@ export interface BankMetaDto {
   reviewConfirmedAt: string | null;
 }
 
-/** The case-study setting of a test that can have such questions. */
-export interface CaseStudyInfo {
-  /** How many of the questions of one attempt are case studies (0 = none). */
-  perTest: number;
-  /** How many case-study questions the stored bank holds. */
-  available: number;
-}
-
 export interface TestAdminInfo {
   testId: string;
   /** All questions of the stored bank, case-study questions included. */
@@ -162,8 +155,10 @@ export interface TestAdminInfo {
   ready: boolean;
   bank: BankMetaDto | null;
   material: MaterialInfo | null;
-  /** null when the test has no case-study questions at all (see `caseStudy` in config/certification.json). */
-  caseStudy: CaseStudyInfo | null;
+  /** The numbers the test is built with (set in the admin screen; config/certification.json gives the first ones). */
+  counts: TestCounts;
+  /** How many case studies the stored bank holds; null when the test has no case-study questions at all. */
+  caseStudyAvailable: number | null;
 }
 
 export interface AdminOverview {

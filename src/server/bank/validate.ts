@@ -358,6 +358,11 @@ export function validateBank(
             code: "bank.caseStudyTooFew",
             params: { count: caseStudyInput, required: rules.caseStudy.perTest },
           });
+        } else if (caseStudyInput !== rules.caseStudy.expected) {
+          warnings.push({
+            code: "bank.caseStudySizeDiffers",
+            params: { count: caseStudyInput, expected: rules.caseStudy.expected },
+          });
         }
       } else if (caseStudyInput > 0) {
         warnings.push({ code: "bank.caseStudyUnused", params: { count: caseStudyInput } });

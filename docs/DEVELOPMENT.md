@@ -121,7 +121,7 @@ SQLite, created by `src/server/db/migrations.ts` (numbered, never edit an applie
 | `materials` | one row per test: file name, size, sha-256, the PDF itself in `data` (BLOB) |
 | `attempts` | `member_id`, `test_id`, `status` (`in_progress`/`submitted`/`abandoned`), `questions_json` (**snapshot** with correct answers, in the order shown), `answers_json`, `score`, `total`, `required_score`, `passed`, `promoted_to`, timestamps |
 | `sessions` | `token_hash` (SHA-256 of the cookie token), `scope` (`participant`/`admin`), `member_id`, `expires_at` |
-| `settings` | key/value: `admin_password_hash`, `participant_password_hash` (scrypt), `case_study_per_test:<testId>` (how many questions of an attempt are case studies, set in the admin screen) |
+| `settings` | key/value: `admin_password_hash`, `participant_password_hash` (scrypt), `test_counts:<testId>` (JSON: the numbers of questions of a test, set in the admin screen: `bankSize`, `perTest`, `caseStudyBankSize`, `caseStudyPerTest`; see `src/lib/counts.ts`) |
 | `schema_migrations` | which migrations were applied |
 
 `test_id` and `role` are plain text ids from `config/certification.json`; there are no foreign keys to them, so changing the
@@ -152,7 +152,7 @@ login, "A" = admin login (two independent cookies). State-changing requests need
 | `PATCH`/`DELETE /api/admin/members/{id}` | A | edit name/role (also clears "typed their own name"), delete with results |
 | `GET /api/admin/members/{id}/attempts`, `GET /api/admin/attempts/{id}` | A | history and full detail |
 | `PUT`/`GET`/`DELETE /api/admin/tests/{testId}/material` | A | study PDF (raw body, `X-Filename` header) |
-| `PUT .../tests/{testId}/case-study` | A | `{ perTest }` (0 to `questionsPerTest`): how many of the questions of one attempt are case studies; `404 noCaseStudy` for a test without them |
+| `PUT .../tests/{testId}/counts` | A | `{ bankSize, perTest, caseStudyBankSize?, caseStudyPerTest? }`: questions in the question set and in one attempt, each with how many of them are case studies (part of the totals); numbers that do not fit together → `400 invalidCounts` with the first `problem` |
 | `POST .../tests/{testId}/bank/validate` | A | `{ text }` or `{ questions }`: check only |
 | `GET`/`PUT .../tests/{testId}/bank` | A | read; save (`{ text, reviewConfirmed }` or `{ questions, meta, imported?, reviewConfirmed }`; every save needs `reviewConfirmed: true`, otherwise `400 reviewNotConfirmed`; `imported` marks questions that came from an uploaded file); invalid → `422` with the problem list |
 | `GET .../tests/{testId}/bank/export` | A | download in the documented file format |
@@ -203,15 +203,18 @@ Not automated: the browser UI. It was checked by hand (see the README). A good n
 
 ### Change the number of questions, the pass mark or the number of choices
 
-Edit `config/certification.json`:
+The number of questions of a test (in the question set and in one attempt, case studies included) is set per test in the
+admin screen and kept in the `settings` table (see `src/lib/counts.ts`, `src/server/services/counts.ts`). The values in
+`config/certification.json` are only the first ones, used until the admin sets others. Edit that file for:
 
-- `tests[].caseStudy` (optional, `{ "bankSize": n, "perTest": n }`, 0–100): the test can have case-study questions. They are **part of**
-  `questionsPerTest` (3 of 30 = 27 ordinary questions, then 3 case studies, drawn separately and always asked last), so
-  `perTest` ≤ `questionsPerTest`. `bankSize` is how many the prompt asks the AI for, `perTest` how many of the questions of one attempt
-  are case studies; both are only defaults, the admin screen overrides them (`perTest` is stored in `settings`). Shipped as 0/0 on the
-  supervisor test (off),
-- `tests[].questionsPerTest` (drawn per attempt), `tests[].expectedBankSize` (a warning if the bank differs),
-  `tests[].passRate` (0 < rate ≤ 1; 1 = all correct; required = ceil(rate × questions)),
+- `tests[].questionsPerTest` (questions in one attempt, first value) and `tests[].expectedBankSize` (questions in the question set,
+  first value; a warning if the stored set differs), 30 and 60 as shipped,
+- `tests[].caseStudy` (optional, `{ "bankSize": n, "perTest": n }`): the test can have case-study questions. They are always **part of**
+  the totals, never on top of them: `bankSize` of the `expectedBankSize` questions of the set and `perTest` of the `questionsPerTest`
+  questions of an attempt are case studies (6 of 60 and 3 of 30 as shipped on the supervisor test: 54 + 6 in the set, an attempt asks 27
+  ordinary questions and then 3 case studies, drawn separately and always last). The numbers must fit together, e.g. `perTest` ≤ `bankSize`;
+  the file is refused otherwise, with a message that says why,
+- `tests[].passRate` (0 < rate ≤ 1; 1 = all correct; required = ceil(rate × questions)),
 - `questionBank.minChoices` / `maxChoices` / `preferredChoices` (4 / 4 / 4 by default: every question has exactly four choices; the editor cannot add or remove choices, so set the same number in all three if you change it), `shuffle.questions` / `shuffle.choices`.
 
 The file is validated at start-up and in a test. Start the app again afterwards (the start script rebuilds by itself; or `npm run build`). Existing results keep the pass

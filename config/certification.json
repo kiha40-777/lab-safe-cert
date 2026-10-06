@@ -28,8 +28,8 @@
       "expectedBankSize": 60,
       "passRate": 1,
       "caseStudy": {
-        "bankSize": 0,
-        "perTest": 0
+        "bankSize": 6,
+        "perTest": 3
       }
     }
   ]

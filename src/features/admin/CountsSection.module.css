@@ -1,0 +1,22 @@
+/* Rows: all questions, the case studies among them, the ordinary rest. Columns: the question set, one test. */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(6rem, max-content) repeat(2, minmax(5rem, 9rem));
+  gap: 0.5rem 1rem;
+  align-items: center;
+}
+
+.head {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.rowLabel {
+  font-size: 0.875rem;
+}
+
+/* The ordinary questions are worked out from the other numbers, so they are shown, not edited. */
+.computed {
+  padding: 0 0.75rem;
+  color: var(--muted);
+}

@@ -5,12 +5,13 @@ import { Notice } from "@/components/Notice";
 import type { TestConfig } from "@/lib/certification";
 import { certification } from "@/lib/config";
 import { copyText } from "@/lib/clipboard";
+import type { TestCounts } from "@/lib/counts";
 import { useI18n } from "@/lib/i18n/context";
 import { lookup } from "@/lib/i18n/messages";
 import { type QuestionLanguage, buildPrompt } from "@/lib/prompt/build";
 
 /** The ready-to-paste prompt for an external AI chat, together with the study PDF. */
-export function PromptSection({ test, caseStudyCount }: { test: TestConfig; caseStudyCount: number }) {
+export function PromptSection({ test, counts }: { test: TestConfig; counts: TestCounts }) {
   const { t } = useI18n();
   const id = useId();
   const area = useRef<HTMLTextAreaElement>(null);
@@ -23,11 +24,12 @@ export function PromptSection({ test, caseStudyCount }: { test: TestConfig; case
         questionLanguage,
         // The prompt is always English, so the test is named in English too.
         testName: lookup("en", `tests.${test.id}.name`) ?? test.id,
-        questionCount: test.expectedBankSize,
-        caseStudyCount,
+        // The case studies are part of the question set: 60 with 6 of them leaves 54 ordinary questions.
+        questionCount: counts.bankSize - counts.caseStudyBankSize,
+        caseStudyCount: counts.caseStudyBankSize,
         choiceCount: certification.questionBank.preferredChoices,
       }),
-    [questionLanguage, test, caseStudyCount],
+    [questionLanguage, test, counts],
   );
 
   async function copy() {
@@ -55,13 +57,13 @@ export function PromptSection({ test, caseStudyCount }: { test: TestConfig; case
         </div>
 
         <p className="hint">
-          {caseStudyCount > 0
+          {counts.caseStudyBankSize > 0
             ? t("admin.prompt.infoCaseStudy", {
-                count: test.expectedBankSize,
+                count: counts.bankSize,
                 choices: certification.questionBank.preferredChoices,
-                caseStudy: caseStudyCount,
+                caseStudy: counts.caseStudyBankSize,
               })
-            : t("admin.prompt.info", { count: test.expectedBankSize, choices: certification.questionBank.preferredChoices })}
+            : t("admin.prompt.info", { count: counts.bankSize, choices: certification.questionBank.preferredChoices })}
         </p>
 
         <div className="field">

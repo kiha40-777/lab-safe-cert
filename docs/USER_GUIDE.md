@@ -67,14 +67,25 @@ You can preview, replace or delete it.
 
 ### 4. Questions
 
-Every test needs a *question bank*: normally 60 questions, from which each attempt draws 30 at random, in random
-order, with the choices in random order too. At least 30 are needed. (Both numbers can be changed; see
-[DEVELOPMENT.md](DEVELOPMENT.md).)
+Every test needs a *question bank* (the *question set*): by default 60 questions, from which each attempt draws 30 at
+random, in random order, with the choices in random order too.
+
+**First: the number of questions.** The card *Number of questions* at the top of each test sets, for the question set
+and for one test, how many questions there are. Set it first: the AI prompt asks for this many questions, the question
+set is checked against it, and the test draws from it. The defaults are 60 in the set and 30 in a test, but any numbers
+that fit together will do (a test cannot ask more than the set holds). The card tells you when they do not fit. A set with
+more questions than a test asks makes every test different. Case studies (below) are **part of these totals**, never on top
+of them: a set of 60 with 10 case studies holds 50 ordinary questions, and a test of 30 with 3 case studies asks 27
+ordinary ones. Press *Save*; it applies to the next steps and to the next test that somebody starts (tests that are already
+under way are not changed).
+
+You can make the questions with an AI (steps 1 and 2) or **write them yourself** (step 3). Use whichever you like.
 
 **Step 1: draft with an AI (optional but recommended).** The card *Ask an AI to draft the questions* contains a ready
 prompt (always written in English). Choose the language you want the questions in, press *Copy*, open an AI chat,
 attach the *same PDF*, paste the prompt and send it. Save the AI's answer (a JSON text) in a file or keep it in the chat.
-This app never contacts an AI itself. You can also write the question file yourself.
+This app never contacts an AI itself. You can also write the question file yourself, or skip steps 1 and 2 and write the
+questions by hand in step 3.
 
 **Step 2: import.** In *Import the questions*, choose the file or paste the text, and press *Check the questions*.
 Nothing is saved at this point.
@@ -93,6 +104,15 @@ Nothing is saved at this point.
 correct answer. Questions that come from a file are marked as *not saved yet*. Open a question to change the text, the
 four choices, the correct one, the explanation shown after the test, and the source (page or section). Every
 question has exactly four choices (the choices cannot be added or removed). *Add a question*, *Delete this question*.
+Under the heading you see how many questions there are against the numbers you set ("Ordinary: 12 / 54 · Case studies: 1 / 6").
+
+**Writing the questions by hand.** When there is no question bank yet, press *Write the questions by hand* in step 3. You
+start with an empty list: *Add a question* (or, for a test with case studies, *Add a case study*) opens a new question
+and puts the cursor in its text. Write the question text, the four choices, mark the correct one, and add an explanation
+and a source if you like. Everything else works as for questions from a file, including the confirmation before saving. The
+questions are only kept in your browser until you save them: the page asks before you close it, reload it or follow a link to
+another section while something is unsaved. Save once all questions the test needs are written (the bank is checked when you
+save, and says what is missing). You can add more questions later and save again.
 
 When you are done, tick *A person has checked every question and its correct answer against the study material* (the bar
 at the bottom stays visible) and press *Save as the question bank* (or *Save changes* for a bank that was saved
@@ -104,15 +124,15 @@ another installation).
 
 **Case studies (Supervisor Certification Test).** Some of the questions of this test can be *case-study* questions: a
 situation is described in the question text and the person chooses what to do (still four choices, one correct). In
-the card *Case-study questions* you set two numbers (both can be 0, which turns case studies off):
+the card *Number of questions* the row *Case studies among them* gives how many of the questions of the set, and of a test,
+are case studies. By default 6 of the 60 questions of the set and 3 of the 30 of a test; set both to 0 to turn case studies
+off.
 
-- *Case-study questions for the AI to write*: only used in the prompt of step 1, which then asks the AI for that many
-  case studies in addition to the ordinary questions. Ask for more than you show per test, so that tests differ.
-- *Case-study questions in each test*: saved on the server. They are **part of the 30 questions of a test**: with 3, a
-  test asks 27 ordinary questions and then 3 case studies. They are chosen at random but are **always asked last,
-  together**, and count towards the pass mark like any other question (with a pass mark of "all correct", every case
-  study must be right too). While the bank holds fewer case studies than this number, or too few ordinary questions for
-  the rest (27 in the example), people cannot start the test.
+- They are chosen at random but are **always asked last, together**, and count towards the pass mark like any other
+  question (with a pass mark of "all correct", every case study must be right too).
+- The question set must hold at least as many case studies as a test asks, and enough ordinary questions for the rest of
+  the test (27 in the example); otherwise people cannot start the test, and a file that lacks them is refused with a message
+  that says what to add. A set with another number than the one you set is only a warning.
 
 Test takers see no difference between a case study and another question. The AI marks case studies with
 `"type": "case_study"`; in the review step they carry a *Case study* label, and the type of a question can be changed
@@ -182,11 +202,12 @@ remaining entry by hand.
 
 **Somebody passed on paper (or should be certified without the test).** Change their level in *Members*.
 
-**A test shows "not available yet".** The test needs at least 30 questions in its bank. Import them under *Tests and
-questions*.
+**A test shows "not available yet".** The question bank does not hold enough questions for one test (by default 30, and
+for the supervisor test 3 of them case studies). Import or write them under *Tests and questions*.
 
-**Can I have a different pass mark or number of questions?** Yes, in `config/certification.json` (start the app again; it rebuilds by itself). See
-[DEVELOPMENT.md](DEVELOPMENT.md).
+**Can I have a different number of questions?** Yes, in the card *Number of questions* of the test (no restart needed). The
+pass mark is set in `config/certification.json` (start the app again; it rebuilds by itself); that file also holds the first
+numbers of questions. See [DEVELOPMENT.md](DEVELOPMENT.md).
 
 **Somebody logs in as someone else.** The app cannot prevent it; identity is by honour. If this matters, run the
 tests in one room with the administrator watching, and keep the participant password to yourselves until the session.

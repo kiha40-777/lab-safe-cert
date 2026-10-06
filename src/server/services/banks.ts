@@ -1,4 +1,5 @@
 import type { CertificationConfig, TestConfig } from "@/lib/certification";
+import { type TestCounts, standardBankSize, standardPerTest } from "@/lib/counts";
 import type { BankMetaDto } from "@/lib/types";
 import type { Bank, BankRules, Question } from "../bank/types";
 import type { AppContext } from "../context";
@@ -6,15 +7,15 @@ import type { Db, Row } from "../db/types";
 import { badRequest } from "../http/errors";
 
 /**
- * The limits a test's question bank is checked against, derived from the certification config.
- * `caseStudyPerTest` is how many of the questions of one attempt are case studies (see case-study.ts); the
- * rest of them are ordinary questions, so that is the least number of ordinary questions the bank needs.
+ * The limits a test's question bank is checked against: the numbers of the test (see counts.ts) and the
+ * choice limits of the certification config. An attempt needs `standardPerTest` ordinary questions and
+ * `caseStudyPerTest` case studies; the set is expected to hold `standardBankSize` and `caseStudyBankSize`.
  */
-export function rulesFor(config: CertificationConfig, test: TestConfig, caseStudyPerTest: number): BankRules {
+export function rulesFor(config: CertificationConfig, test: TestConfig, counts: TestCounts): BankRules {
   return {
-    minQuestions: test.questionsPerTest - (test.caseStudy ? caseStudyPerTest : 0),
-    expectedQuestions: test.expectedBankSize,
-    caseStudy: test.caseStudy ? { perTest: caseStudyPerTest } : null,
+    minQuestions: standardPerTest(counts),
+    expectedQuestions: standardBankSize(counts),
+    caseStudy: test.caseStudy ? { perTest: counts.caseStudyPerTest, expected: counts.caseStudyBankSize } : null,
     minChoices: config.questionBank.minChoices,
     maxChoices: config.questionBank.maxChoices,
     preferredChoices: config.questionBank.preferredChoices,

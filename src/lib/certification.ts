@@ -1,6 +1,7 @@
 // The certification ladder (roles and the tests that move people up it) is
 // defined as data in config/certification.json. This module describes and
 // validates that data. It is shared by the server and the browser.
+import { type CountsProblem, MAX_BANK_SIZE, MAX_PER_TEST, checkCounts, defaultCounts } from "./counts";
 
 export interface TestConfig {
   /** Stable id, used in URLs, the database and the language files (tests.<id>.name). */
@@ -9,26 +10,31 @@ export interface TestConfig {
   requiresRole: string;
   /** Role the person receives when they pass. */
   grantsRole: string;
-  /** How many questions are drawn from the question bank for one attempt. */
+  /**
+   * How many questions one attempt asks, case studies included. This is the number a test starts with;
+   * the admin screen can change it for each test (see lib/counts.ts).
+   */
   questionsPerTest: number;
-  /** How many questions the question bank is expected to contain (a warning, not an error, when different). */
+  /**
+   * How many questions the question set holds, case studies included (a warning, not an error, when the
+   * stored set has another number). Also only the first value: the admin screen can change it.
+   */
   expectedBankSize: number;
   /** Share of correct answers needed to pass, 0 < passRate <= 1 (1 = all correct). */
   passRate: number;
   /**
-   * Present only on a test that can have case-study questions. They are part of the
-   * `questionsPerTest` questions of an attempt (a test of 30 with 3 case studies asks 27 ordinary
-   * questions and then 3 case studies), are drawn separately from the bank and always appear last.
-   * The numbers are the defaults; the admin screen can change `perTest` (and the number the
-   * AI is asked to write) without editing this file.
+   * Present only on a test that can have case-study questions. They are always part of the totals, never
+   * on top of them: with 6 of 60 in the set and 3 of 30 in an attempt, the set holds 54 ordinary questions
+   * and an attempt asks 27 of them and then 3 case studies (drawn separately, always asked last).
+   * The numbers are the first values; the admin screen can change them for each test.
    */
   caseStudy?: CaseStudyConfig;
 }
 
 export interface CaseStudyConfig {
-  /** How many case-study questions the AI prompt asks for (0 = none). */
+  /** How many of the `expectedBankSize` questions of the set are case studies (0 = none). */
   bankSize: number;
-  /** How many of the questions of one attempt are case studies (0 = none; at most `questionsPerTest`). */
+  /** How many of the `questionsPerTest` questions of one attempt are case studies (0 = none). */
   perTest: number;
 }
 
@@ -50,8 +56,17 @@ export interface CertificationConfig {
 
 const ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/;
 
-/** Upper limit of case-study questions per test (in the bank and in one attempt). */
-export const MAX_CASE_STUDY = 100;
+/** What is wrong with the numbers of a test, as said in the error about config/certification.json. */
+const COUNTS_PROBLEMS: Record<CountsProblem, string> = {
+  perTestAboveBank: "questionsPerTest must not be larger than expectedBankSize.",
+  caseStudyBankAboveBank: "caseStudy.bankSize must not be larger than expectedBankSize (case studies are part of the set).",
+  caseStudyPerTestAbovePerTest:
+    "caseStudy.perTest must not be larger than questionsPerTest (case studies are part of the questions of a test).",
+  caseStudyPerTestAboveBank: "caseStudy.perTest must not be larger than caseStudy.bankSize.",
+  ordinaryShort:
+    "expectedBankSize minus caseStudy.bankSize (the ordinary questions of the set) must be at least questionsPerTest minus caseStudy.perTest (the ordinary questions of a test).",
+  noCaseStudies: "caseStudy must be left out when the test has no case studies.",
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -140,12 +155,12 @@ export function validateCertificationConfig(input: unknown): CertificationConfig
         continue;
       }
       if (requiresRole === grantsRole) fail(`${where}: requiresRole and grantsRole must differ.`);
-      if (!isIntInRange(questionsPerTest, 1, 500)) {
-        fail(`${where}.questionsPerTest must be an integer from 1 to 500.`);
+      if (!isIntInRange(questionsPerTest, 1, MAX_PER_TEST)) {
+        fail(`${where}.questionsPerTest must be an integer from 1 to ${MAX_PER_TEST}.`);
         continue;
       }
-      if (!isIntInRange(expectedBankSize, questionsPerTest, 5000)) {
-        fail(`${where}.expectedBankSize must be an integer >= questionsPerTest.`);
+      if (!isIntInRange(expectedBankSize, 1, MAX_BANK_SIZE)) {
+        fail(`${where}.expectedBankSize must be an integer from 1 to ${MAX_BANK_SIZE}.`);
         continue;
       }
       if (typeof passRate !== "number" || !(passRate > 0 && passRate <= 1)) {
@@ -156,21 +171,13 @@ export function validateCertificationConfig(input: unknown): CertificationConfig
       if (rawCaseStudy !== undefined) {
         const bankSize = isRecord(rawCaseStudy) ? rawCaseStudy.bankSize : undefined;
         const perTest = isRecord(rawCaseStudy) ? rawCaseStudy.perTest : undefined;
-        if (!isIntInRange(bankSize, 0, MAX_CASE_STUDY) || !isIntInRange(perTest, 0, MAX_CASE_STUDY)) {
-          fail(`${where}.caseStudy must be { "bankSize": n, "perTest": n } with integers from 0 to ${MAX_CASE_STUDY}.`);
-          continue;
-        }
-        if (perTest > bankSize) {
-          fail(`${where}.caseStudy.perTest must not be larger than caseStudy.bankSize.`);
-          continue;
-        }
-        if (perTest > questionsPerTest) {
-          fail(`${where}.caseStudy.perTest must not be larger than questionsPerTest (case studies are part of the questions of a test).`);
+        if (!isIntInRange(bankSize, 0, MAX_BANK_SIZE) || !isIntInRange(perTest, 0, MAX_PER_TEST)) {
+          fail(`${where}.caseStudy must be { "bankSize": n, "perTest": n } with whole numbers (bankSize up to ${MAX_BANK_SIZE}, perTest up to ${MAX_PER_TEST}).`);
           continue;
         }
         caseStudy = { bankSize, perTest };
       }
-      tests.push({
+      const test: TestConfig = {
         id,
         requiresRole,
         grantsRole,
@@ -178,7 +185,11 @@ export function validateCertificationConfig(input: unknown): CertificationConfig
         expectedBankSize,
         passRate,
         ...(caseStudy ? { caseStudy } : {}),
-      });
+      };
+      for (const problem of checkCounts(defaultCounts(test), caseStudy !== undefined)) {
+        fail(`${where}: ${COUNTS_PROBLEMS[problem]}`);
+      }
+      tests.push(test);
     }
 
     // Each role can lead to at most one test, and the ladder must not loop.

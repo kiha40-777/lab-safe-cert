@@ -246,7 +246,7 @@ describe("admin: question bank", () => {
 
     // and the exported file can be uploaded again
     const check = await read<ValidationResultDto>(
-      await admin.post("/api/admin/tests/supervisor/bank/validate", { text: JSON.stringify(file) }),
+      await admin.post("/api/admin/tests/participant/bank/validate", { text: JSON.stringify(file) }),
     );
     expect(check.ok).toBe(true);
 
@@ -261,81 +261,123 @@ describe("admin: question bank", () => {
   });
 });
 
-describe("admin: case-study questions", () => {
-  const putPerTest = (admin: ApiClient, testId: string, body: unknown) =>
-    admin.put(`/api/admin/tests/${testId}/case-study`, body);
+describe("admin: number of questions", () => {
+  const putCounts = (admin: ApiClient, testId: string, body: unknown) =>
+    admin.put(`/api/admin/tests/${testId}/counts`, body);
   const overviewOf = async (admin: ApiClient, testId: string) =>
     (await read<AdminOverview>(await admin.get("/api/admin/overview"))).tests.find((t) => t.testId === testId);
+  // the first numbers of the supervisor test: 60 questions in the set (6 case studies), 30 in a test (3 case studies)
+  const first = { bankSize: 60, perTest: 30, caseStudyBankSize: 6, caseStudyPerTest: 3 };
+  const bankJson = (standard: number, caseStudies: number) => makeBankJson(standard, 4, {}, caseStudies);
+  const putBank = (admin: ApiClient, testId: string, text: string) =>
+    admin.put(`/api/admin/tests/${testId}/bank`, { text, reviewConfirmed: true });
 
   it("is for the admin only", async () => {
     const anonymous = new ApiClient();
-    expect((await putPerTest(anonymous, "supervisor", { perTest: 2 })).status).toBe(401);
+    expect((await putCounts(anonymous, "supervisor", first)).status).toBe(401);
     const participant = await login("participant");
-    expect((await putPerTest(participant, "supervisor", { perTest: 2 })).status).toBe(401);
+    expect((await putCounts(participant, "supervisor", first)).status).toBe(401);
   });
 
-  it("saves how many case studies a test asks and shows it in the overview", async () => {
+  it("starts at 60 / 30, and for the supervisor test 6 / 3 case studies", async () => {
     const admin = await login("admin");
-    expect(await overviewOf(admin, "supervisor")).toMatchObject({ caseStudy: { perTest: 0, available: 0 } });
-    expect(await overviewOf(admin, "participant")).toMatchObject({ caseStudy: null });
+    expect(await overviewOf(admin, "participant")).toMatchObject({
+      counts: { bankSize: 60, perTest: 30, caseStudyBankSize: 0, caseStudyPerTest: 0 },
+      caseStudyAvailable: null,
+    });
+    expect(await overviewOf(admin, "supervisor")).toMatchObject({ counts: first, caseStudyAvailable: 0, ready: false });
+  });
 
-    const saved = await putPerTest(admin, "supervisor", { perTest: 3 });
+  it("saves the numbers of a test and shows them in the overview", async () => {
+    const admin = await login("admin");
+    const numbers = { bankSize: 100, perTest: 20, caseStudyBankSize: 10, caseStudyPerTest: 2 };
+    const saved = await putCounts(admin, "supervisor", numbers);
     expect(saved.status).toBe(200);
-    expect(await read(saved)).toEqual({ perTest: 3 });
-    expect(await overviewOf(admin, "supervisor")).toMatchObject({ caseStudy: { perTest: 3, available: 0 }, ready: false });
+    expect(await read(saved)).toEqual({ counts: numbers });
+    expect(await overviewOf(admin, "supervisor")).toMatchObject({ counts: numbers });
+    expect(await overviewOf(admin, "participant")).toMatchObject({ counts: { bankSize: 60, perTest: 30 } }); // not affected
+
+    // a test without case studies: the numbers for them may be left out
+    const plain = await putCounts(admin, "participant", { bankSize: 40, perTest: 10 });
+    expect(plain.status).toBe(200);
+    expect(await overviewOf(admin, "participant")).toMatchObject({
+      counts: { bankSize: 40, perTest: 10, caseStudyBankSize: 0, caseStudyPerTest: 0 },
+    });
   });
 
-  it("refuses a test without case studies, unknown tests and numbers that make no sense", async () => {
+  it("refuses numbers that do not fit together, case studies for a test without them, and numbers that make no sense", async () => {
     const admin = await login("admin");
-    const noCases = await putPerTest(admin, "participant", { perTest: 2 });
-    expect(noCases.status).toBe(404);
-    expect(await read(noCases)).toEqual({ error: { code: "noCaseStudy" } });
-    expect((await putPerTest(admin, "nope", { perTest: 2 })).status).toBe(404);
+    const refused = async (testId: string, change: Record<string, unknown>, problem: string) => {
+      const response = await putCounts(admin, testId, { ...first, ...change });
+      expect(response.status, JSON.stringify(change)).toBe(400);
+      expect(await read(response)).toEqual({ error: { code: "invalidCounts", params: { problem } } });
+    };
+    await refused("supervisor", { perTest: 61 }, "perTestAboveBank");
+    await refused("supervisor", { caseStudyBankSize: 61 }, "caseStudyBankAboveBank");
+    await refused("supervisor", { caseStudyPerTest: 31 }, "caseStudyPerTestAbovePerTest");
+    await refused("supervisor", { caseStudyBankSize: 2 }, "caseStudyPerTestAboveBank");
+    await refused("supervisor", { caseStudyBankSize: 40 }, "ordinaryShort"); // 20 ordinary questions, 27 needed
+    await refused("participant", { caseStudyBankSize: 6, caseStudyPerTest: 3 }, "noCaseStudies");
+    expect(await overviewOf(admin, "supervisor")).toMatchObject({ counts: first }); // nothing was stored
 
-    // a test has 30 questions, and the case studies are part of them
-    for (const bad of [-1, 1.5, "3", null, 31, 101, undefined]) {
-      const response = await putPerTest(admin, "supervisor", { perTest: bad });
-      expect(response.status, `perTest ${String(bad)}`).toBe(400);
-      expect(await read(response)).toEqual({ error: { code: "invalidInput", params: { field: "perTest" } } });
+    for (const bad of [0, -1, 1.5, "60", null, 5001]) {
+      const response = await putCounts(admin, "supervisor", { ...first, bankSize: bad });
+      expect(response.status, `bankSize ${String(bad)}`).toBe(400);
+      expect(await read(response)).toEqual({ error: { code: "invalidInput", params: { field: "bankSize" } } });
     }
-    expect((await putPerTest(admin, "supervisor", { perTest: 30 })).status).toBe(200);
-    expect((await putPerTest(admin, "supervisor", { perTest: 0 })).status).toBe(200);
+    const noTest = await putCounts(admin, "nope", first);
+    expect(noTest.status).toBe(404);
+    expect((await putCounts(admin, "supervisor", { perTest: 30 })).status).toBe(400); // bankSize missing
   });
 
-  it("checks a file against the number: too few case studies is refused, a file with enough is saved", async () => {
+  it("checks a file against the numbers: too few case studies is refused, a file with enough is saved", async () => {
     const admin = await login("admin");
-    await putPerTest(admin, "supervisor", { perTest: 3 });
-
-    const short = await admin.post("/api/admin/tests/supervisor/bank/validate", { text: makeBankJson(60, 4, {}, 2) });
+    const short = await admin.post("/api/admin/tests/supervisor/bank/validate", { text: bankJson(54, 2) });
     expect(await read<ValidationResultDto>(short)).toMatchObject({
       ok: false,
       errors: [{ code: "bank.caseStudyTooFew", params: { count: 2, required: 3 } }],
     });
-    const refused = await admin.put("/api/admin/tests/supervisor/bank", { text: makeBankJson(60, 4, {}, 2), reviewConfirmed: true });
-    expect(refused.status).toBe(422);
+    expect((await putBank(admin, "supervisor", bankJson(54, 2))).status).toBe(422);
 
-    const good = await admin.post("/api/admin/tests/supervisor/bank/validate", { text: makeBankJson(60, 4, {}, 5) });
+    const good = await admin.post("/api/admin/tests/supervisor/bank/validate", { text: bankJson(54, 6) });
     const result = await read<ValidationResultDto>(good);
-    expect(result).toMatchObject({ ok: true, summary: { questionCount: 65, caseStudyCount: 5 } });
-    expect(result.preview?.filter((q) => q.kind === "case_study")).toHaveLength(5);
+    expect(result).toMatchObject({ ok: true, warnings: [], summary: { questionCount: 60, caseStudyCount: 6 } });
+    expect(result.preview?.filter((q) => q.kind === "case_study")).toHaveLength(6);
 
-    const saved = await admin.put("/api/admin/tests/supervisor/bank", { text: makeBankJson(60, 4, {}, 5), reviewConfirmed: true });
-    expect(saved.status).toBe(200);
-    expect(await overviewOf(admin, "supervisor")).toMatchObject({
-      questionCount: 65,
-      ready: true,
-      caseStudy: { perTest: 3, available: 5 },
-    });
+    expect((await putBank(admin, "supervisor", bankJson(54, 6))).status).toBe(200);
+    expect(await overviewOf(admin, "supervisor")).toMatchObject({ questionCount: 60, ready: true, caseStudyAvailable: 6, counts: first });
     const stored = await read<{ bank: BankDto }>(await admin.get("/api/admin/tests/supervisor/bank"));
-    expect(stored.bank.questions.filter((q) => q.kind === "case_study").map((q) => q.id)).toEqual(["c001", "c002", "c003", "c004", "c005"]);
+    expect(stored.bank.questions.filter((q) => q.kind === "case_study").map((q) => q.id)).toEqual([
+      "c001",
+      "c002",
+      "c003",
+      "c004",
+      "c005",
+      "c006",
+    ]);
+  });
+
+  it("checks a file against the numbers that were set, not the first ones", async () => {
+    const admin = await login("admin");
+    await putCounts(admin, "participant", { bankSize: 40, perTest: 10 });
+    const result = await read<ValidationResultDto>(
+      await admin.post("/api/admin/tests/participant/bank/validate", { text: makeBankJson(12) }),
+    );
+    // 12 questions are enough for a test of 10; the set was meant to hold 40
+    expect(result).toMatchObject({ ok: true, warnings: [{ code: "bank.sizeDiffers", params: { count: 12, expected: 40 } }] });
+    const tooFew = await read<ValidationResultDto>(
+      await admin.post("/api/admin/tests/participant/bank/validate", { text: makeBankJson(9) }),
+    );
+    expect(tooFew.errors).toContainEqual({ code: "bank.tooFew", params: { count: 9, required: 10 } });
   });
 
   it("keeps the type of a question edited in the editor, and refuses an unknown one", async () => {
     const admin = await login("admin");
-    await uploadBank(admin, "supervisor");
+    expect((await putBank(admin, "supervisor", bankJson(54, 6))).status).toBe(200);
     const { bank } = await read<{ bank: BankDto }>(await admin.get("/api/admin/tests/supervisor/bank"));
     const questions = bank.questions.map((q) => ({ ...q }));
     questions[0]!.kind = "case_study";
+    questions[59]!.kind = "standard"; // the numbers stay what they are: 6 case studies, 54 ordinary questions
 
     const ok = await admin.put("/api/admin/tests/supervisor/bank", { questions, reviewConfirmed: true });
     expect(ok.status).toBe(200);
@@ -353,19 +395,17 @@ describe("admin: case-study questions", () => {
 
   it("downloads the bank with the type of the case studies", async () => {
     const admin = await login("admin");
-    await putPerTest(admin, "supervisor", { perTest: 2 });
-    await admin.put("/api/admin/tests/supervisor/bank", { text: makeBankJson(60, 4, {}, 2), reviewConfirmed: true });
+    await putBank(admin, "supervisor", bankJson(54, 6));
     const file = (await read<{ questions: { id: string; type?: string }[] }>(
       await admin.get("/api/admin/tests/supervisor/bank/export"),
     )).questions;
-    expect(file.filter((q) => q.type === "case_study").map((q) => q.id)).toEqual(["c001", "c002"]);
-    expect(file.filter((q) => q.type === undefined)).toHaveLength(60);
+    expect(file.filter((q) => q.type === "case_study")).toHaveLength(6);
+    expect(file.filter((q) => q.type === undefined)).toHaveLength(54);
   });
 
   it("lets a participant take the test with the case studies last", async () => {
     const admin = await login("admin");
-    await putPerTest(admin, "supervisor", { perTest: 3 });
-    await admin.put("/api/admin/tests/supervisor/bank", { text: makeBankJson(60, 4, {}, 6), reviewConfirmed: true });
+    await putBank(admin, "supervisor", bankJson(54, 6));
     const [pat] = await addMembers(admin, ["Pat"], "participant");
     const client = await participantAs(pat!.id);
 
@@ -384,6 +424,47 @@ describe("admin: case-study questions", () => {
       await client.post(`/api/participant/attempts/${attempt.id}/submit`, { answers: await correctAnswersOf(ctx, attempt.id) }),
     );
     expect(result).toMatchObject({ score: 30, total: 30, passed: true, promotedTo: "supervisor" });
+  });
+
+  it("lets a small test be written entirely by hand: numbers first, then the questions one by one", async () => {
+    const admin = await login("admin");
+    // a set of 4 questions (1 case study), a test of 2 questions (1 case study)
+    const numbers = { bankSize: 4, perTest: 2, caseStudyBankSize: 1, caseStudyPerTest: 1 };
+    expect((await putCounts(admin, "supervisor", numbers)).status).toBe(200);
+
+    const question = (text: string, kind: "standard" | "case_study") => ({
+      id: "",
+      kind,
+      text,
+      choices: ["first", "second", "third", "fourth"],
+      answerIndex: 1,
+      explanation: "",
+      source: "",
+    });
+    // nothing is written yet: an empty list is refused
+    const empty = await admin.put("/api/admin/tests/supervisor/bank", { questions: [], reviewConfirmed: true });
+    expect(empty.status).toBe(422);
+    // the case study is still missing
+    const noCase = await admin.put("/api/admin/tests/supervisor/bank", {
+      questions: [question("one", "standard"), question("two", "standard"), question("three", "standard")],
+      reviewConfirmed: true,
+    });
+    expect(noCase.status).toBe(422);
+    expect((await read<{ validation: ValidationResultDto }>(noCase)).validation.errors).toContainEqual({
+      code: "bank.caseStudyTooFew",
+      params: { count: 0, required: 1 },
+    });
+
+    const written = [question("one", "standard"), question("two", "standard"), question("three", "standard"), question("a situation", "case_study")];
+    const saved = await admin.put("/api/admin/tests/supervisor/bank", { questions: written, imported: true, reviewConfirmed: true });
+    expect(saved.status).toBe(200);
+    expect(await overviewOf(admin, "supervisor")).toMatchObject({ questionCount: 4, ready: true, caseStudyAvailable: 1 });
+
+    const [pat] = await addMembers(admin, ["Pat"], "participant");
+    const client = await participantAs(pat!.id);
+    const attempt = await read<AttemptView>(await client.post("/api/participant/attempts", { testId: "supervisor" }));
+    expect(attempt.questions).toHaveLength(2);
+    expect(attempt.questions[1]!.text).toBe("a situation"); // the case study is always last
   });
 });
 

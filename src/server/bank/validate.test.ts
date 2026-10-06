@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { findTest } from "@/lib/certification";
 import { certification } from "@/lib/config";
+import { defaultCounts } from "@/lib/counts";
 import type { QuestionDto } from "@/lib/types";
 import { makeBankJson, makeQuestions } from "../test-utils";
 import { rulesFor } from "../services/banks";
@@ -14,7 +15,7 @@ import {
 
 const test = findTest(certification, "participant");
 if (!test) throw new Error("participant test missing from config");
-const rules = rulesFor(certification, test, 0);
+const rules = rulesFor(certification, test, defaultCounts(test));
 
 const codes = (issues: { code: string }[]) => issues.map((i) => i.code);
 
@@ -353,15 +354,17 @@ describe("bankToExternal", () => {
 describe("case-study questions", () => {
   const supervisor = findTest(certification, "supervisor");
   if (!supervisor) throw new Error("supervisor test missing from config");
-  const withCaseStudies = (perTest: number) => rulesFor(certification, supervisor, perTest);
+  // A set of 60 questions with `inSet` case studies, a test of 30 with `perTest` of them.
+  const withCaseStudies = (perTest: number, inSet = 6) =>
+    rulesFor(certification, supervisor, { bankSize: 60, perTest: 30, caseStudyBankSize: inSet, caseStudyPerTest: perTest });
 
   it("reads \"type\": \"case_study\" and counts them apart from the ordinary questions", () => {
-    const result = validateBankText(makeBankJson(60, 4, {}, 5), withCaseStudies(3));
+    const result = validateBankText(makeBankJson(54, 4, {}, 6), withCaseStudies(3));
     expect(result.errors).toEqual([]);
-    expect(result.warnings).toEqual([]);
-    expect(result.summary).toMatchObject({ questionCount: 65, caseStudyCount: 5 });
+    expect(result.warnings).toEqual([]); // 54 ordinary + 6 case studies = the 60 of the set
+    expect(result.summary).toMatchObject({ questionCount: 60, caseStudyCount: 6 });
     const kinds = result.bank!.questions.map((q) => q.kind);
-    expect(kinds.filter((k) => k === "case_study")).toHaveLength(5);
+    expect(kinds.filter((k) => k === "case_study")).toHaveLength(6);
     expect(result.bank!.questions.find((q) => q.id === "c001")?.kind).toBe("case_study");
     expect(result.bank!.questions.find((q) => q.id === "q001")?.kind).toBe("standard");
   });
@@ -372,7 +375,7 @@ describe("case-study questions", () => {
       qs[1]!.type = "case study";
       qs[2]!.type = " STANDARD ";
     });
-    const result = validateBankText(text, withCaseStudies(0));
+    const result = validateBankText(text, withCaseStudies(0, 0));
     expect(result.errors).toEqual([]);
     expect(result.bank!.questions.slice(0, 4).map((q) => q.kind)).toEqual(["case_study", "case_study", "standard", "standard"]);
   });
@@ -382,30 +385,40 @@ describe("case-study questions", () => {
       qs[0]!.type = "essay";
       qs[1]!.type = 7;
     });
-    const result = validateBankText(text, withCaseStudies(0));
+    const result = validateBankText(text, withCaseStudies(0, 0));
     expect(result.errors).toContainEqual({ code: "question.typeInvalid", question: 1, params: { value: "essay" } });
     expect(result.errors).toContainEqual({ code: "question.typeInvalid", question: 2, params: { value: "7" } });
     expect(result.bank).toBeNull();
   });
 
   it("counts only the ordinary questions towards the minimum and the expected size", () => {
-    // a test of 30 questions with 3 case studies needs 27 ordinary questions
+    // a test of 30 questions with 3 case studies needs 27 ordinary questions; the set is expected to hold 54
     const few = validateBankText(makeBankJson(26, 4, {}, 10), withCaseStudies(3));
     expect(few.errors).toContainEqual({ code: "bank.standardTooFew", params: { count: 26, required: 27 } });
     expect(validateBankText(makeBankJson(27, 4, {}, 10), withCaseStudies(3)).errors).toEqual([]);
-    expect(validateBankText(makeBankJson(0, 4, {}, 30), withCaseStudies(30)).errors).toEqual([]); // case studies only
-    const odd = validateBankText(makeBankJson(40, 4, {}, 10), withCaseStudies(3));
+    // a test made of case studies only needs no ordinary questions
+    expect(validateBankText(makeBankJson(0, 4, {}, 30), withCaseStudies(30, 30)).errors).toEqual([]);
+    const odd = validateBankText(makeBankJson(40, 4, {}, 6), withCaseStudies(3));
     expect(odd.errors).toEqual([]);
-    expect(odd.warnings).toContainEqual({ code: "bank.standardSizeDiffers", params: { count: 40, expected: 60 } });
+    expect(odd.warnings).toContainEqual({ code: "bank.standardSizeDiffers", params: { count: 40, expected: 54 } });
   });
 
   it("needs at least as many case studies as one test asks", () => {
-    const short = validateBankText(makeBankJson(60, 4, {}, 2), withCaseStudies(3));
+    const short = validateBankText(makeBankJson(54, 4, {}, 2), withCaseStudies(3));
     expect(short.errors).toContainEqual({ code: "bank.caseStudyTooFew", params: { count: 2, required: 3 } });
     expect(short.bank).toBeNull();
-    expect(validateBankText(makeBankJson(60, 4, {}, 3), withCaseStudies(3)).errors).toEqual([]);
+    expect(validateBankText(makeBankJson(54, 4, {}, 3), withCaseStudies(3)).errors).toEqual([]);
     // no case studies are fine when none are asked ("0 questions" is allowed)
-    expect(validateBankText(makeBankJson(60), withCaseStudies(0)).errors).toEqual([]);
+    expect(validateBankText(makeBankJson(60), withCaseStudies(0, 0)).errors).toEqual([]);
+  });
+
+  it("warns when the number of case studies is not the one expected for the set", () => {
+    const more = validateBankText(makeBankJson(54, 4, {}, 9), withCaseStudies(3));
+    expect(more.errors).toEqual([]);
+    expect(more.warnings).toContainEqual({ code: "bank.caseStudySizeDiffers", params: { count: 9, expected: 6 } });
+    // the exact numbers raise no warning at all
+    expect(validateBankText(makeBankJson(54, 4, {}, 6), withCaseStudies(3)).warnings).toEqual([]);
+    expect(validateBankText(makeBankJson(50, 4, {}, 10), withCaseStudies(3, 10)).warnings).toEqual([]);
   });
 
   it("only warns about case studies in the bank of a test that does not use them", () => {
@@ -420,20 +433,20 @@ describe("case-study questions", () => {
       qs[0]!.question = "S".repeat(2500);
       qs[1]!.question = "S".repeat(2500);
     });
-    const result = validateBankText(text, withCaseStudies(0));
+    const result = validateBankText(text, withCaseStudies(0, 0));
     expect(result.errors).toEqual([{ code: "question.textTooLong", question: 2, params: { max: 1000 } }]);
   });
 
   it("keeps the type through editing and download", () => {
-    const parsed = validateBankText(makeBankJson(60, 4, {}, 3), withCaseStudies(3));
+    const parsed = validateBankText(makeBankJson(54, 4, {}, 6), withCaseStudies(3));
     const dtos = parsed.bank!.questions.map(questionToDto);
-    expect(dtos.filter((q) => q.kind === "case_study")).toHaveLength(3);
+    expect(dtos.filter((q) => q.kind === "case_study")).toHaveLength(6);
     const edited = validateEditedQuestions(dtos, parsed.bank!.info, withCaseStudies(3));
     expect(edited.errors).toEqual([]);
-    expect(edited.bank!.questions.filter((q) => q.kind === "case_study")).toHaveLength(3);
+    expect(edited.bank!.questions.filter((q) => q.kind === "case_study")).toHaveLength(6);
 
     const external = bankToExternal(parsed.bank!) as { questions: Record<string, unknown>[] };
-    expect(external.questions.filter((q) => q.type === "case_study")).toHaveLength(3);
-    expect(external.questions.filter((q) => "type" in q)).toHaveLength(3); // ordinary questions stay unchanged
+    expect(external.questions.filter((q) => q.type === "case_study")).toHaveLength(6);
+    expect(external.questions.filter((q) => "type" in q)).toHaveLength(6); // ordinary questions stay unchanged
   });
 });
