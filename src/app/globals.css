@@ -547,6 +547,9 @@ dialog.dialog {
 .btn-block {
   width: 100%;
 }
+.btn-icon {
+  flex: none;
+}
 .link-button {
   background: none;
   border: 0;

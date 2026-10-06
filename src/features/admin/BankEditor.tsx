@@ -2,6 +2,7 @@
 
 import { useId, useMemo, useState } from "react";
 import { ErrorNotice } from "@/components/ErrorNotice";
+import { DownloadIcon } from "@/components/DownloadIcon";
 import { Loading } from "@/components/Loading";
 import { Notice } from "@/components/Notice";
 import { api, ApiClientError } from "@/lib/api";
@@ -403,6 +404,7 @@ function EditorBody({
         <div>
           <a className="btn btn-sm" href={`/api/admin/tests/${test.id}/bank/export`} download>
             {t("admin.bank.export")}
+            <DownloadIcon />
           </a>
         </div>
       )}

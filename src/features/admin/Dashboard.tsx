@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { DownloadIcon } from "@/components/DownloadIcon";
 import { Notice } from "@/components/Notice";
 import { certification } from "@/lib/config";
 import { useI18n } from "@/lib/i18n/context";
@@ -71,9 +72,11 @@ export function Dashboard({ overview, goto }: { overview: AdminOverview; goto: (
         <div className="page-head-actions">
           <a className="btn btn-sm" href="/api/admin/export?type=results" download>
             {t("admin.dashboard.exportResults")}
+            <DownloadIcon />
           </a>
           <a className="btn btn-sm" href="/api/admin/export?type=attempts" download>
             {t("admin.dashboard.exportAttempts")}
+            <DownloadIcon />
           </a>
         </div>
       </header>
