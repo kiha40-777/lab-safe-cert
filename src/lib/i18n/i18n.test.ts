@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import raw from "../../../config/certification.json";
 import { certification } from "../config";
-import { localeFromAcceptLanguage, localeFromCookieHeader, pickLocale } from "./detect";
+import { localeFromCookieHeader, pickLocale } from "./detect";
 import {
   type Locale,
   interpolate,
@@ -118,20 +118,12 @@ describe("choosing the language", () => {
     expect(localeFromCookieHeader(null)).toBeNull();
   });
 
-  it("matches Accept-Language by preference and by primary language", () => {
-    expect(localeFromAcceptLanguage("ja-JP,ja;q=0.9,en;q=0.8")).toBe("ja");
-    expect(localeFromAcceptLanguage("en-GB,en;q=0.9")).toBe("en");
-    expect(localeFromAcceptLanguage("fr-FR,fr;q=0.9,ja;q=0.5")).toBe("ja");
-    expect(localeFromAcceptLanguage("ja;q=0,en;q=0.4")).toBe("en"); // q=0 means "not acceptable"
-    expect(localeFromAcceptLanguage("de,fr")).toBeNull();
-    expect(localeFromAcceptLanguage("")).toBeNull();
-  });
-
-  it("prefers the visitor's choice, then DEFAULT_LANG, then the browser, then English", () => {
-    expect(pickLocale({ cookie: "lsc_lang=en", defaultLang: "ja", acceptLanguage: "ja" })).toBe("en");
-    expect(pickLocale({ defaultLang: "ja", acceptLanguage: "en" })).toBe("ja");
-    expect(pickLocale({ defaultLang: "xx", acceptLanguage: "ja" })).toBe("ja");
-    expect(pickLocale({ acceptLanguage: "de" })).toBe("en");
+  it("prefers the visitor's choice, then DEFAULT_LANG, then English (never the browser's language)", () => {
+    expect(pickLocale({ cookie: "lsc_lang=ja", defaultLang: "en" })).toBe("ja");
+    expect(pickLocale({ cookie: "lsc_lang=en", defaultLang: "ja" })).toBe("en");
+    expect(pickLocale({ defaultLang: "ja" })).toBe("ja");
+    expect(pickLocale({ defaultLang: "xx" })).toBe("en");
+    expect(pickLocale({ cookie: "lsc_lang=fr" })).toBe("en");
     expect(pickLocale({})).toBe("en");
   });
 

@@ -62,7 +62,7 @@ Notable decisions:
 | Attempts store a **snapshot** of the drawn questions | Results stay readable and gradable after the bank is edited or replaced; resuming gives the same questions. |
 | IDs are random UUID text, timestamps ISO-8601 text | Portable between SQLite and Postgres; sorting works as text. |
 | Scoped, in-memory login rate limiter | Direct connections cannot be told apart reliably (forged `X-Forwarded-For`), so failures are counted for all clients together; per address only behind a trusted proxy. |
-| The interface language is chosen in the browser | No language in URLs; a cookie remembers it and the server renders the right `<html lang>`. |
+| The interface language is chosen in the browser, and starts as English | No language in URLs; a cookie remembers the visitor's choice (else `DEFAULT_LANG`, else English: the browser's language is not used) and the server renders the right `<html lang>`. |
 
 ## Directory map
 

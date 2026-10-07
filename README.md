@@ -281,7 +281,7 @@ which is what hosting platforms do) and edit it:
 | `PARTICIPANT_PASSWORD` | If set, this is the participant password (managed here). Otherwise the admin sets it in the admin screen. |
 | `TRUST_PROXY` | `1` when the app runs behind a reverse proxy/hosting platform that sets `X-Forwarded-*` headers (already on at Render). |
 | `COOKIE_SECURE` | `1` to always mark cookies `Secure` (automatic over HTTPS behind a trusted proxy, and already on at Render). |
-| `DEFAULT_LANG` | `en` or `ja`: language for first-time visitors (default: the browser's language). |
+| `DEFAULT_LANG` | `en` or `ja`: language for first-time visitors (default: `en`). Visitors can switch with the language menu; their choice is remembered. |
 
 Ladder, questions per test, pass mark and choice limits: [`config/certification.json`](config/certification.json).
 Interface texts: [`src/locales`](src/locales) (one JSON file per language). The AI prompt:

@@ -5,7 +5,7 @@ This guide is for the people who **run** the tests (administrators) and the peop
 [QUESTION_FORMAT.md](QUESTION_FORMAT.md).
 
 The interface is available in English and Japanese. Use the language menu at the top right of every page; the choice
-is remembered in your browser. (Only buttons and explanations change language; the questions are shown in the language
+is remembered in your browser. The first time, the interface is in English. (Only buttons and explanations change language; the questions are shown in the language
 they were written in.)
 
 ## The idea
