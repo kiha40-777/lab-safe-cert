@@ -167,18 +167,14 @@ hr {
   top: 0;
   z-index: 20;
 }
+/* The whole width of the window on every screen: the name at the left edge, the controls at the right edge. */
 .topbar-inner {
-  max-width: 1120px;
-  margin: 0 auto;
   padding: 0.5rem 1.5rem;
   min-height: 3.5rem;
   display: flex;
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-}
-.topbar-inner-wide {
-  max-width: none;
 }
 .brand {
   font-weight: 800;

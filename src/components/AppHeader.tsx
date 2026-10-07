@@ -16,7 +16,7 @@ export function AppHeader({ admin = false, children }: { admin?: boolean; childr
       <a className="skip-link" href="#main">
         {t("app.skipToContent")}
       </a>
-      <div className={admin ? "topbar-inner topbar-inner-wide" : "topbar-inner"}>
+      <div className="topbar-inner">
         <div className="brand">
           <span>{t("app.name")}</span>
           {admin ? <small>{t("app.adminSuffix")}</small> : null}
