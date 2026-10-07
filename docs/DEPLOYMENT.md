@@ -1,21 +1,30 @@
 # Deployment
 
 Lab Safe Cert is one Node.js server process. It keeps all its data (names, results, questions, study PDFs, passwords in
-hashed form, logins) in a single folder, by default `./data`. That is what decides where it can run: **it needs a place
-where files written to disk are still there tomorrow.**
+hashed form, logins) in one database. Where that database lives decides where the app can run:
+
+- **A folder** (the default: `./data/app.db`, a SQLite file). It needs a place where files written to disk are still
+  there tomorrow.
+- **A [Turso](https://turso.tech) database** (set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`). The data is then on
+  Turso's servers, so the app can run on a host whose disk is erased at every restart, such as the free plan of Render.
+  The app itself is the same; only the place it saves to differs.
 
 | Where | Fit | Notes |
 |---|---|---|
 | Your own PC or a lab computer, `npm start` / `start-lan` | Best for most teams | Free. People connect over the same Wi-Fi/LAN. See the README. |
+| **Render (free plan) + Turso (free plan)** | Good for an address on the internet at no cost | Two free accounts, no code to change; the site sleeps when nobody uses it. See [below](#render-free--turso-free). |
 | A small VPS or a server you control, Node.js or Docker | Good | You get a stable address and can add HTTPS. |
 | A container platform with a **persistent volume** | Good | Use the `Dockerfile`; mount a volume at `/data`. Many such platforms charge for volumes and none was tested here. |
-| **Vercel / Netlify** | **Does not work as is** | See [below](#vercel-netlify-and-other-serverless-hosts). |
+| **Vercel / Netlify** | Not covered yet | A few more changes are needed, see [below](#vercel-netlify-and-other-serverless-hosts). |
 | GitLab Pages / GitHub Pages / any static host | Does not work | There is a server, not just files. |
 
 **What was verified for this document:** the production build was run with `node server.js` (the same layout as the
 Docker image: the "standalone" build output plus `.next/static`) on macOS with Node.js 24.21, and served pages, a static
 file, the health check and an admin login. The `Dockerfile` and `docker-compose.yml` were **not built or run** (no
-Docker was available), the reverse-proxy snippets below were **not tested**, and no hosting platform was tried.
+Docker was available), the reverse-proxy snippets below were **not tested**, and no hosting platform was tried. The
+Turso support was tested with the same client library on a local file instead of a Turso server (see
+[Render (free) + Turso (free)](#render-free--turso-free)); **it has not been run against a real Turso database or a real
+Render service.**
 
 ## 1. On your own computer
 
@@ -75,13 +84,73 @@ User=labsafe
 WantedBy=multi-user.target
 ```
 
-## 4. Container platforms (Fly.io, Railway, Render, and similar)
+## 4. Container platforms with a volume (Fly.io, Railway, and similar)
 
 Requirements for any of them: build from the `Dockerfile`; expose port 3000; **attach a persistent volume mounted at
 `/data`**; set `ADMIN_PASSWORD` (the log of a fresh container is easy to lose), optionally `PARTICIPANT_PASSWORD`, and
 `TRUST_PROXY=1` (the platform puts a proxy in front); use `/api/health` as the health check. Free tiers usually have
-temporary disks: **if the disk is temporary, everything is lost at every restart.** Check the current terms of the
-platform; none of them was tested for this project.
+temporary disks: **if the disk is temporary, everything is lost at every restart.** Then either pay for a volume or keep
+the data in Turso instead (next section). Check the current terms of the platform; none of them was tested for this project.
+
+## Render (free) + Turso (free)
+
+Both have a free plan (check their current terms; they change). Nothing is added to the website itself: the same app
+runs on Render and saves to Turso instead of to a file, so the free plan's erased disk does not matter.
+
+You need: a **Turso** account, a **Render** account, and the code in a Git repository that Render can read (GitHub or
+GitLab.com; whether Render can read the iGEM GitLab was not checked, so you may need to put a copy on GitHub).
+
+**1. Create the database at Turso** (website only; no command line needed)
+
+1. Sign up at <https://turso.tech>, then create a database (any name; choose a location near your users).
+2. Open the database and copy its **URL** (it starts with `libsql://`).
+3. Create an access **token** for that database and copy it. (The names of the buttons may differ; look for "token".)
+
+**2. Create the web service at Render**
+
+1. At <https://render.com>: **New → Web Service**, and pick the repository.
+2. Language/runtime **Node**, instance type **Free**, and these commands:
+   - Build Command: `npm ci && npm run build`
+   - Start Command: `npm run start:server`
+3. Environment variables (Render's *Environment* section; never put them in the repository):
+
+   | Name | Value |
+   |---|---|
+   | `TURSO_DATABASE_URL` | the URL from step 1 |
+   | `TURSO_AUTH_TOKEN` | the token from step 1 |
+   | `ADMIN_PASSWORD` | the admin password you choose |
+   | `PARTICIPANT_PASSWORD` | optional; otherwise the admin sets it in the admin screen |
+
+4. Under *Advanced*, set **Health Check Path** to `/api/health`. Then deploy.
+
+**3. Use it.** Open `https://<your-service>.onrender.com/admin` and log in with `ADMIN_PASSWORD`. From here it is the same
+as everywhere else (see the user guide). On Render, `TRUST_PROXY` and `COOKIE_SECURE` are switched on automatically
+(Render sets `RENDER=true`).
+
+Things to know:
+
+- **The free plan goes to sleep** after about 15 minutes without a visit, and the next visit waits for it to start
+  (tens of seconds). Open the address yourself a minute before a test session. The data is not affected: it is in Turso.
+- The first start creates the tables in the Turso database by itself; later starts only check them. A new version of the
+  software upgrades them the same way (take a copy of your data before big updates).
+- **Updating:** push to the repository; Render builds and starts the new version by itself (its default).
+- The study PDFs are stored in the database in small pieces, so there is no size limit of the app. Turso's plan has its
+  own storage allowance.
+- Login attempts are counted in the server's memory, which is right for one running copy (the free plan). If you ever
+  run several copies, the count is per copy.
+- If the admin password is lost: set `LSC_RESET_ADMIN_PASSWORD=1` for one start and read the new password in Render's
+  log, then remove the variable (or just set `ADMIN_PASSWORD`, which always wins).
+- The same two variables work on your own computer too: put `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` into
+  `.env.local`, and `npm start` then uses the Turso database (the same data as the online site) instead of `data/`.
+  Remove them to go back to the folder.
+- Not wanting Render: any host that runs `npm ci && npm run build` and `npm run start:server` (Node.js 22.13 or newer)
+  works the same way with these variables.
+
+**What was tested.** The tests run the whole database layer, all the services and the study-PDF storage on the library
+that talks to Turso (`@libsql/client`), working on a local file (`npm run test:libsql`), and check that an unreachable
+database is reported clearly. **Not tested:** a real Turso database (its network protocol, token handling and its limits),
+a real Render service, and the start command on Render. If something fails on first use, the Render log shows the reason
+(a wrong URL or token is reported at start-up as "Could not connect to the Turso database").
 
 ## 5. HTTPS and reverse proxies
 
@@ -102,13 +171,13 @@ quiz.example.org {
 }
 ```
 
-nginx (untested; note `client_max_body_size`, its default of 1 MB would block PDF uploads):
+nginx (untested; note `client_max_body_size`, its default of 1 MB would block PDF uploads; set it above your largest PDF):
 
 ```nginx
 server {
     listen 443 ssl;
     server_name quiz.example.org;
-    client_max_body_size 30m;
+    client_max_body_size 100m;
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
@@ -121,7 +190,10 @@ server {
 
 ## 6. Backups and restore
 
-Everything is in `DATA_DIR` (`app.db`, a SQLite file, holds all of it, including the PDFs).
+Everything is in one database: `DATA_DIR/app.db` (a SQLite file, which holds all of it including the PDFs), or the Turso
+database when `TURSO_DATABASE_URL` is set. For Turso, look at the backup and restore functions of its dashboard and
+documentation (for example `turso db shell <database> .dump > backup.sql` with its command-line tool); the steps below
+are for the folder.
 
 - **Backup**: stop the app (or at least make sure nobody is using it) and copy the folder. For Docker, for example:
   `docker run --rm -v lab-safe-cert-data:/data -v "$PWD":/backup alpine tar czf /backup/lab-safe-cert-data.tgz -C /data .`
@@ -153,25 +225,21 @@ build. After changing them start the app again (the start script rebuilds by its
 ## Vercel, Netlify and other serverless hosts
 
 These platforms run your code as short-lived functions on machines whose disk is read-only or thrown away after use.
-Lab Safe Cert stores its SQLite file and the PDFs on disk, so on such a platform the data would vanish, uploads
-would fail, and the first-start password printed in a log would be lost. **Do not deploy it there as it is.**
+The data problem is solved by Turso (see above), but the app still assumes **one long-running server**, so it has **not
+been prepared for them**. What would be left to do (not done in this repository):
 
-What it would take (not done in this repository):
-
-1. **A hosted database** replacing SQLite. All data access goes through the small `Db` interface in
-   [`src/server/db/types.ts`](../src/server/db/types.ts) (async `all` / `get` / `run` / `transaction`), and the SQL in the
-   services deliberately sticks to a portable subset (text ids, ISO-8601 text timestamps, `?` placeholders, `ON CONFLICT`
-   upserts). A Postgres adapter (for example for Neon, which both Vercel and Netlify can provision) would implement this
-   interface and its own migrations; the schema uses a binary column only for the PDFs.
-2. **PDF storage without local disk and within request limits.** Vercel functions accept request bodies of only about
-   4.5 MB (check the platform's current limits), so PDFs would have to be uploaded in pieces (or go to the platform's blob storage), and served back piece by piece.
-3. **Nothing that lives in server memory.** The login rate limiter is in memory (per server instance) and would need
+1. **Nothing that lives in server memory.** The login rate limiter is in memory (per server instance) and would need
    to move into the database; sessions are already stored in the database.
+2. **The database upgrade at build time.** Today the tables are created or upgraded when the server starts
+   (`src/instrumentation.ts`); a function that starts for every few requests should not do that, so it would move into
+   a build step.
+3. **Request size.** Vercel functions accept request bodies of only about 4.5 MB (check the platform's current limits).
+   A study PDF is uploaded in one request, so larger PDFs would have to be sent in pieces.
 4. **Passwords from environment variables** (`ADMIN_PASSWORD`, `PARTICIPANT_PASSWORD`), since there is no terminal to
    read a generated one from.
 
-Nobody has done or tested this; treat it as a design note. Alternatively, run the app on a small VPS or a container
-platform with a volume, which needs none of these changes.
+Nobody has done or tested this; treat it as a design note. Render, a small VPS or a container platform needs none of
+these changes.
 
 ## Health check
 

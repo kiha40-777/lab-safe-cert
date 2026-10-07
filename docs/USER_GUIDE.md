@@ -33,8 +33,9 @@ There are two addresses:
 ### 1. First start and passwords
 
 - When the app starts for the first time it prints a random **admin password** in its window, once. Write it down.
-  If it is lost, stop the app and run `npm start -- --reset-admin-password` (Docker: start once with the environment
-  variable `LSC_RESET_ADMIN_PASSWORD=1`, read the new password from the log, then remove the variable again).
+  If it is lost, stop the app and run `npm start -- --reset-admin-password` (Docker or a hosting service: start once with
+  the environment variable `LSC_RESET_ADMIN_PASSWORD=1`, read the new password from the log, then remove the variable
+  again). On a hosting service it is easier to set `ADMIN_PASSWORD` yourself.
 - Open `/admin` and log in. Admin logins last 8 hours.
 - Go to **Settings**:
   - **Administrator password**: change it (you must type the current one). Other admin logins are ended.
@@ -61,8 +62,8 @@ Under **Members**:
 
 ### 3. Study PDFs
 
-In the left-hand menu, under **Tests and questions**, choose the test, then **Study material (PDF)**: upload a PDF (up to 25 MB unless
-your installation says otherwise). People see it *before* they can start the test, and again on the result page.
+In the left-hand menu, under **Tests and questions**, choose the test, then **Study material (PDF)**: upload a PDF (there is no size limit; a very large
+file takes longer to upload and to open). People see it *before* they can start the test, and again on the result page.
 You can preview, replace or delete it.
 
 ### 4. Questions
@@ -166,7 +167,8 @@ get a leading apostrophe so that spreadsheets do not run them as formulas.
 
 ### 6. Routine care
 
-- **Back up**: stop the app and copy the `data` folder (or the Docker volume). It contains everything.
+- **Back up**: stop the app and copy the `data` folder (or the Docker volume). It contains everything. With a Turso
+  database the data is not in a folder: see [DEPLOYMENT.md](DEPLOYMENT.md#6-backups-and-restore).
 - **Update the software**: `git pull`, then start the app as usual; it reinstalls and rebuilds by itself when needed. The data stays.
 - **Rules that are good to know**: attempts are unlimited; an unfinished test is resumed for 24 hours (after that a
   new one is drawn); the questions of an attempt are frozen when it starts, so editing the bank does not affect tests

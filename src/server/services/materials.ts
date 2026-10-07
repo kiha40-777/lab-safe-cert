@@ -2,9 +2,15 @@ import { createHash } from "node:crypto";
 import type { MaterialInfo } from "@/lib/types";
 import type { AppContext } from "../context";
 import type { Db } from "../db/types";
-import { ApiError, badRequest } from "../http/errors";
+import { badRequest } from "../http/errors";
 
 const MAX_FILENAME_CHARS = 120;
+
+/**
+ * A PDF is stored in pieces of this size (table material_chunks). Some databases and connections refuse
+ * a single large value; many small ones work everywhere, so the size of a PDF does not need a limit.
+ */
+export const CHUNK_BYTES = 256 * 1024;
 
 /** A safe display/download file name: no path parts, no control characters, ends in .pdf. */
 export function sanitizeFilename(raw: string | null): string {
@@ -36,9 +42,6 @@ export async function saveMaterial(
   bytes: Uint8Array,
 ): Promise<MaterialInfo> {
   if (bytes.length === 0) throw badRequest("emptyFile");
-  if (bytes.length > ctx.env.maxPdfBytes) {
-    throw new ApiError(413, "fileTooLarge", { maxMb: Math.floor(ctx.env.maxPdfBytes / (1024 * 1024)) });
-  }
   if (!looksLikePdf(bytes)) throw badRequest("notPdf");
 
   const info: MaterialInfo = {
@@ -47,26 +50,59 @@ export async function saveMaterial(
     uploadedAt: ctx.now().toISOString(),
   };
   const sha256 = createHash("sha256").update(bytes).digest("hex");
-  await ctx.db.run(
-    `INSERT INTO materials (test_id, filename, size, sha256, uploaded_at, data)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT(test_id) DO UPDATE SET
-       filename = excluded.filename, size = excluded.size, sha256 = excluded.sha256,
-       uploaded_at = excluded.uploaded_at, data = excluded.data`,
-    [testId, info.filename, info.size, sha256, info.uploadedAt, bytes],
-  );
+  await ctx.db.transaction(async (tx) => {
+    await tx.run(
+      `INSERT INTO materials (test_id, filename, size, sha256, uploaded_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(test_id) DO UPDATE SET
+         filename = excluded.filename, size = excluded.size, sha256 = excluded.sha256,
+         uploaded_at = excluded.uploaded_at`,
+      [testId, info.filename, info.size, sha256, info.uploadedAt],
+    );
+    await tx.run("DELETE FROM material_chunks WHERE test_id = ?", [testId]);
+    for (let index = 0, offset = 0; offset < bytes.length; index += 1, offset += CHUNK_BYTES) {
+      await tx.run("INSERT INTO material_chunks (test_id, idx, data) VALUES (?, ?, ?)", [
+        testId,
+        index,
+        bytes.slice(offset, offset + CHUNK_BYTES),
+      ]);
+    }
+  });
   return info;
 }
+
+/** How often a PDF is read again when it was replaced while it was being read. */
+const READ_ATTEMPTS = 3;
 
 export async function getMaterialFile(
   db: Db,
   testId: string,
 ): Promise<{ filename: string; bytes: Uint8Array } | null> {
-  const row = await db.get<{ filename: string; data: Uint8Array }>(
-    "SELECT filename, data FROM materials WHERE test_id = ?",
-    [testId],
-  );
-  return row ? { filename: row.filename, bytes: row.data } : null;
+  for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
+    const material = await db.get<{ filename: string; size: number; sha256: string }>(
+      "SELECT filename, size, sha256 FROM materials WHERE test_id = ?",
+      [testId],
+    );
+    if (!material) return null;
+    const pieces = await db.all<{ idx: number }>(
+      "SELECT idx FROM material_chunks WHERE test_id = ? ORDER BY idx",
+      [testId],
+    );
+    const chunks = await Promise.all(
+      pieces.map((piece) =>
+        db.get<{ data: Uint8Array }>("SELECT data FROM material_chunks WHERE test_id = ? AND idx = ?", [
+          testId,
+          piece.idx,
+        ]),
+      ),
+    );
+    if (chunks.some((chunk) => chunk === undefined)) continue; // replaced or deleted meanwhile: read again
+    const bytes = Buffer.concat(chunks.map((chunk) => chunk?.data ?? new Uint8Array()));
+    if (bytes.length === material.size && createHash("sha256").update(bytes).digest("hex") === material.sha256) {
+      return { filename: material.filename, bytes };
+    }
+  }
+  throw new Error(`The stored study PDF of "${testId}" is incomplete or damaged. Upload it again.`);
 }
 
 export async function listMaterialInfos(db: Db): Promise<Map<string, MaterialInfo>> {
@@ -79,5 +115,8 @@ export async function listMaterialInfos(db: Db): Promise<Map<string, MaterialInf
 }
 
 export async function deleteMaterial(ctx: AppContext, testId: string): Promise<void> {
-  await ctx.db.run("DELETE FROM materials WHERE test_id = ?", [testId]);
+  await ctx.db.transaction(async (tx) => {
+    await tx.run("DELETE FROM material_chunks WHERE test_id = ?", [testId]);
+    await tx.run("DELETE FROM materials WHERE test_id = ?", [testId]);
+  });
 }

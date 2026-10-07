@@ -25,10 +25,10 @@ of questions, pass mark, languages, the AI prompt) is data or one small module; 
                                                   │ src/server/bank/*         (checker, drawing, │
    config/certification.json  ──► both sides      │                            grading)          │
    src/locales/*.json         ──► both sides      │ src/server/db/*           (Db interface,     │
-                                                  │                            SQLite, migrations)│
+                                                  │                            adapters, migrations)│
                                                   └──────────────────────────────────────────────┘
-                                                           │ node:sqlite
-                                                       data/app.db
+                                                           │ node:sqlite            │ @libsql/client (HTTPS)
+                                                       data/app.db            Turso database
 ```
 
 Principles that shaped the code:
@@ -41,7 +41,8 @@ Principles that shaped the code:
    rate limiter). Tests build a context with an in-memory database, a fake clock and a seeded random generator.
 3. **Configuration and text are data.** `config/certification.json` (levels and tests), `src/locales/*.json` (interface
    texts), `src/lib/prompt/build.ts` (AI prompt). Compilers and tests keep them consistent.
-4. **Replaceable storage.** All SQL goes through `Db` (`src/server/db/types.ts`), and stays in a portable subset.
+4. **Replaceable storage.** All SQL goes through `Db` (`src/server/db/types.ts`), and stays in a portable subset. There are
+   two adapters: a SQLite file (`sqlite.ts`, the default) and a Turso database (`libsql.ts`, chosen by `TURSO_DATABASE_URL`).
 5. **Few dependencies.** Runtime: `next`, `react`, `react-dom`. No ORM, no UI library, no state library, no validation
    library (a small `input.ts` reads request bodies), no CSS framework.
 
@@ -53,6 +54,10 @@ Notable decisions:
 | Logic in `src/server/services` | Testable without Next.js; route files stay thin. |
 | `node:sqlite` (built into Node 22.13+) | No native module to compile: `npm ci` cannot fail on a missing compiler. It is still labelled experimental by Node.js, which is why all access is isolated in `src/server/db/sqlite.ts`. |
 | One in-process mutex around SQLite | `Db.transaction` is async; the mutex keeps statements of different requests from interleaving inside a transaction. |
+| The Turso adapter serialises writes and transactions, not reads | The database is on another machine and takes concurrent connections; one request's several round trips must not make every other request wait, but this server's own writes still must not collide with its transactions. |
+| Turso is chosen by environment variables, and loaded only then | Without `TURSO_DATABASE_URL` nothing of the libSQL client is loaded (and with Turso, `node:sqlite` is not loaded), so the one-command local start is unchanged. |
+| A study PDF is stored in 256 KB pieces (`material_chunks`) | A remote database or its connection may refuse one large value; many small ones work everywhere, so the app needs no PDF size limit. |
+| No reliance on foreign keys | Deleting a member removes their attempts explicitly: not every database enforces foreign keys. |
 | Correct answer as a **letter** in the JSON | Avoids the 0-/1-based ambiguity that AI-made files suffer from. |
 | Attempts store a **snapshot** of the drawn questions | Results stay readable and gradable after the bank is edited or replaced; resuming gives the same questions. |
 | IDs are random UUID text, timestamps ISO-8601 text | Portable between SQLite and Postgres; sorting works as text. |
@@ -82,7 +87,7 @@ src/
   server/                      server-only code (never imported by the browser; ESLint enforces it)
     context.ts                 AppContext and the process-wide instance
     env.ts                     environment variables
-    db/                        Db interface, SQLite adapter, migrations
+    db/                        Db interface, SQLite and libSQL (Turso) adapters, choosing between them, migrations
     auth/                      password hashing, sessions, cookies, login rate limiter
     http/                      route() wrapper, body reading, input parsing, errors, file responses
     bank/                      question-file checker, drawing, grading
@@ -107,12 +112,13 @@ Example: a participant hands in a test, `POST /api/participant/attempts/<id>/sub
    translates `code` with the language files (`errors.<code>`). Unknown errors become `500` with a generic message and
    are logged.
 
-The first request after start-up (or `instrumentation.ts` at start-up, whichever is first) opens
-`DATA_DIR/app.db`, applies migrations and makes sure an admin password exists.
+The first request after start-up (or `instrumentation.ts` at start-up, whichever is first) opens the database
+(`DATA_DIR/app.db`, or the Turso database in `TURSO_DATABASE_URL`; `db/open.ts`), applies migrations and makes sure an
+admin password exists.
 
 ## Data model
 
-SQLite, created by `src/server/db/migrations.ts` (numbered, never edit an applied migration; add a new one).
+SQLite (the same tables in Turso), created by `src/server/db/migrations.ts` (numbered, never edit an applied migration; add a new one).
 
 | Table | Content |
 |---|---|
@@ -187,7 +193,9 @@ npm run check     # typecheck + lint + tests
 - `src/server/services/*.test.ts`: members, the attempt life cycle (resume, expiry, double submit, promotion, snapshot),
   passwords, sessions, files, banks, statistics and CSV. They use `makeTestContext()` from `src/server/test-utils.ts`:
   in-memory SQLite, movable clock, seeded random numbers.
-- `src/server/db/sqlite.test.ts`: transactions, interleaving, migrations.
+- `src/server/db/adapters.test.ts`: the same checks (queries, blobs, transactions, concurrency, migrations including the upgrade
+  of an older database) on both adapters; the libSQL one runs on a local file. `open.test.ts`: choosing the database and
+  reporting one that cannot be reached. `npm run test:libsql` runs the service tests on the libSQL adapter too.
 - `src/server/api/*.test.ts`: `test-client.ts` loads **every** `src/app/api/**/route.ts` (via Vite's `import.meta.glob`) and
   calls the handlers with real `Request` objects and a cookie jar, without starting a server. They cover login/logout,
   cookies, rate limiting, CSRF, the guard on all routes, and complete flows (admin prepares, a candidate fails, retries,
@@ -261,11 +269,12 @@ For example several correct answers, images, or another field.
 
 ### Change the storage (for example to Postgres)
 
-Implement `Db` (`src/server/db/types.ts`): `all`, `get`, `run` with `?` placeholders (convert to `$1...`), `transaction`
+SQLite and Turso are already there (`src/server/db/sqlite.ts`, `libsql.ts`, chosen in `db/open.ts`). For another database,
+implement `Db` (`src/server/db/types.ts`): `all`, `get`, `run` with `?` placeholders (convert to `$1...`), `transaction`
 (a real transaction; use only `tx` inside), plus your own migrations (the SQL in `migrations.ts` is SQLite flavoured: BLOB
-vs BYTEA, `INTEGER` booleans). Select it in `startApp()` in `src/server/context.ts` (for example from `DATABASE_URL`).
+vs BYTEA, `INTEGER` booleans). Select it in `openDatabase()` in `src/server/db/open.ts` (for example from `DATABASE_URL`).
 Watch for: `COUNT(*)` returning strings in some drivers, and the in-memory rate limiter (move it to the database when there
-is more than one server instance). The service tests can run against your adapter by changing `makeTestContext()`.
+is more than one server instance). The service tests can run against your adapter by changing `openTestDatabase()` in `src/server/test-utils.ts` (as `LSC_TEST_DB=libsql` does).
 
 ### Add an API route
 
@@ -289,7 +298,7 @@ typo is a compile error. Plural forms: `key_one` / `key_other` with a `{count}` 
 
 ## Ideas that were not done
 
-- Hosted-database adapter and chunked PDF upload (to run on Vercel/Netlify; see [DEPLOYMENT.md](DEPLOYMENT.md)).
+- Running on Vercel/Netlify: the login limiter in the database, the database upgrade at build time, and the PDF upload in pieces from the browser (see [DEPLOYMENT.md](DEPLOYMENT.md)).
 - Per-person PIN or invitation link (so that nobody can take a test as somebody else), expiry of certifications and reminders.
 - Multiple correct answers, questions with images, per-topic statistics, timed tests, attempt limits or cool-down.
 - A bundled PDF viewer (pdf.js) for consistent display on phones.

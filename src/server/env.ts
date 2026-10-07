@@ -2,8 +2,12 @@ import { resolve } from "node:path";
 
 /** Runtime settings taken from environment variables (see .env.example). All are optional. */
 export interface Env {
-  /** Folder that holds the database file. */
+  /** Folder that holds the database file (used when no Turso database is configured). */
   dataDir: string;
+  /** Address of a Turso (libSQL) database. When set, the data is kept there instead of in `dataDir`. */
+  tursoUrl: string | null;
+  /** Access token of that Turso database. */
+  tursoAuthToken: string | null;
   /** When set, this is the admin password (it cannot be changed in the admin screen). */
   adminPassword: string | null;
   /** When set, this is the participant password (it cannot be changed in the admin screen). */
@@ -14,40 +18,36 @@ export interface Env {
   trustProxy: boolean;
   /** Always mark cookies as Secure. */
   cookieSecure: boolean;
-  /** Largest accepted study PDF, in bytes. */
-  maxPdfBytes: number;
   /** UI language for first-time visitors; null = follow the browser. */
   defaultLang: string | null;
 }
-
-const DEFAULT_MAX_PDF_MB = 25;
 
 function text(value: string | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
 }
 
-function flag(value: string | undefined): boolean {
+function flag(value: string | undefined, fallback = false): boolean {
   const v = value?.trim().toLowerCase();
+  if (!v) return fallback;
   return v === "1" || v === "true" || v === "yes";
 }
 
 export function readEnv(source: Record<string, string | undefined> = process.env): Env {
-  const requestedMb = Number(source.MAX_PDF_MB);
-  const maxPdfMb =
-    Number.isFinite(requestedMb) && requestedMb >= 1 && requestedMb <= 200
-      ? requestedMb
-      : DEFAULT_MAX_PDF_MB;
+  // Render (render.com) sets RENDER=true and serves the app through its HTTPS proxy, so there the
+  // two proxy settings are on unless they are set explicitly.
+  const behindProxy = flag(source.RENDER);
 
   return {
     // A run-time location (not part of the build), so the bundler must not try to include it.
     dataDir: resolve(/*turbopackIgnore: true*/ text(source.DATA_DIR) ?? "data"),
+    tursoUrl: text(source.TURSO_DATABASE_URL),
+    tursoAuthToken: text(source.TURSO_AUTH_TOKEN),
     adminPassword: text(source.ADMIN_PASSWORD),
     participantPassword: text(source.PARTICIPANT_PASSWORD),
     resetAdminPassword: flag(source.LSC_RESET_ADMIN_PASSWORD),
-    trustProxy: flag(source.TRUST_PROXY),
-    cookieSecure: flag(source.COOKIE_SECURE),
-    maxPdfBytes: Math.round(maxPdfMb * 1024 * 1024),
+    trustProxy: flag(source.TRUST_PROXY, behindProxy),
+    cookieSecure: flag(source.COOKIE_SECURE, behindProxy),
     defaultLang: text(source.DEFAULT_LANG),
   };
 }

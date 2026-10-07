@@ -2,8 +2,8 @@ import { ApiError } from "./errors";
 
 export const MAX_JSON_BYTES = 2 * 1024 * 1024;
 
-/** Reads a request body, giving up (413) as soon as it grows past `maxBytes`. */
-export async function readBody(req: Request, maxBytes: number): Promise<Uint8Array> {
+/** Reads a request body, giving up (413) as soon as it grows past `maxBytes` (no limit when it is left out). */
+export async function readBody(req: Request, maxBytes = Number.POSITIVE_INFINITY): Promise<Uint8Array> {
   const declared = Number(req.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > maxBytes) {
     throw new ApiError(413, "payloadTooLarge", { maxBytes });

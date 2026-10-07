@@ -153,7 +153,9 @@ export async function setupApiEnvironment(env: Record<string, string | null> = {
     PARTICIPANT_PASSWORD,
     TRUST_PROXY: null,
     COOKIE_SECURE: null,
-    MAX_PDF_MB: null,
+    TURSO_DATABASE_URL: null,
+    TURSO_AUTH_TOKEN: null,
+    RENDER: null,
     LSC_RESET_ADMIN_PASSWORD: null,
     ...env,
   };

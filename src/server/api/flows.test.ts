@@ -86,7 +86,7 @@ describe("admin: study material", () => {
     expect(await read(gone)).toEqual({ error: { code: "materialNotFound" } });
   });
 
-  it("refuses files that are not PDFs, empty files, too-large files and unknown tests", async () => {
+  it("refuses files that are not PDFs, empty files and unknown tests", async () => {
     const admin = await login("admin");
     const notPdf = await admin.call("PUT", "/api/admin/tests/participant/material", { pdf: new TextEncoder().encode("hello") });
     expect(notPdf.status).toBe(400);
@@ -105,15 +105,16 @@ describe("admin: study material", () => {
     expect(await read(unknown)).toEqual({ error: { code: "unknownTest" } });
   });
 
-  it("enforces the size limit", async () => {
-    await environment.cleanup();
-    environment = await setupApiEnvironment({ MAX_PDF_MB: "1" });
+  it("accepts a PDF of any size", async () => {
     const admin = await login("admin");
-    const big = new Uint8Array(1024 * 1024 + 10);
+    const big = new Uint8Array(6 * 1024 * 1024 + 7);
     big.set(tinyPdf());
-    const response = await admin.call("PUT", "/api/admin/tests/participant/material", { pdf: big });
-    expect(response.status).toBe(413);
-    expect(await read(response)).toEqual({ error: { code: "fileTooLarge", params: { maxMb: 1 } } });
+    for (let i = 40; i < big.length; i++) big[i] = i % 251;
+    const upload = await admin.call("PUT", "/api/admin/tests/participant/material", { pdf: big });
+    expect(upload.status).toBe(200);
+    expect(await read(upload)).toMatchObject({ material: { size: big.length } });
+    const view = await admin.get("/api/admin/tests/participant/material");
+    expect(Buffer.from(await view.arrayBuffer()).equals(Buffer.from(big))).toBe(true);
   });
 });
 

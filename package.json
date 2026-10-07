@@ -24,12 +24,15 @@
     "build": "node scripts/next.mjs build",
     "start": "node scripts/launch.mjs",
     "start:lan": "node scripts/launch.mjs --lan",
+    "start:server": "node scripts/launch.mjs --host 0.0.0.0 --no-install --no-rebuild",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:libsql": "vitest run --config vitest.libsql.config.mts",
     "check": "npm run typecheck && npm run lint && npm run test"
   },
   "dependencies": {
+    "@libsql/client": "0.18.0",
     "next": "16.3.7",
     "react": "19.3.0",
     "react-dom": "19.3.0"

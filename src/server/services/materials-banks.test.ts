@@ -3,6 +3,7 @@ import type { Bank } from "../bank/types";
 import { makeQuestions, makeTestContext } from "../test-utils";
 import { loadBank, loadBankMetas, saveBank } from "./banks";
 import {
+  CHUNK_BYTES,
   deleteMaterial,
   getMaterialFile,
   listMaterialInfos,
@@ -80,8 +81,8 @@ describe("study material storage", () => {
     expect(Buffer.from(stored as Uint8Array).equals(Buffer.from(bytes))).toBe(true);
   });
 
-  it("rejects empty files, files that are not PDFs and files over the size limit", async () => {
-    const ctx = await makeTestContext({ env: { MAX_PDF_MB: "1" } });
+  it("rejects empty files and files that are not PDFs", async () => {
+    const ctx = await makeTestContext();
     await expect(saveMaterial(ctx, "participant", "a.pdf", new Uint8Array())).rejects.toMatchObject({
       status: 400,
       code: "emptyFile",
@@ -90,14 +91,76 @@ describe("study material storage", () => {
       status: 400,
       code: "notPdf",
     });
-    const big = new Uint8Array(1024 * 1024 + 1);
-    big.set(pdf());
-    await expect(saveMaterial(ctx, "participant", "a.pdf", big)).rejects.toMatchObject({
-      status: 413,
-      code: "fileTooLarge",
-      params: { maxMb: 1 },
-    });
     expect(await listMaterialInfos(ctx.db)).toEqual(new Map());
+  });
+
+  describe("pieces", () => {
+    const bigPdf = (size: number) => {
+      const bytes = new Uint8Array(size);
+      bytes.set(pdf());
+      for (let i = 40; i < bytes.length; i++) bytes[i] = (i * 7) % 256;
+      return bytes;
+    };
+    const chunkSizes = async (ctx: Awaited<ReturnType<typeof makeTestContext>>, testId = "participant") =>
+      (
+        await ctx.db.all<{ size: number }>(
+          "SELECT length(data) AS size FROM material_chunks WHERE test_id = ? ORDER BY idx",
+          [testId],
+        )
+      ).map((row) => row.size);
+
+    it("has no size limit: a PDF of many megabytes is stored in pieces and comes back unchanged", async () => {
+      const ctx = await makeTestContext();
+      const bytes = bigPdf(5 * 1024 * 1024 + 123);
+      await saveMaterial(ctx, "participant", "big.pdf", bytes);
+
+      const sizes = await chunkSizes(ctx);
+      expect(sizes.length).toBe(Math.ceil(bytes.length / CHUNK_BYTES));
+      expect(Math.max(...sizes)).toBeLessThanOrEqual(CHUNK_BYTES);
+      expect(sizes.reduce((sum, size) => sum + size, 0)).toBe(bytes.length);
+
+      const stored = (await getMaterialFile(ctx.db, "participant"))?.bytes;
+      expect(Buffer.from(stored as Uint8Array).equals(Buffer.from(bytes))).toBe(true);
+    });
+
+    it("keeps a file that is exactly one piece, or a piece and one byte, intact", async () => {
+      const ctx = await makeTestContext();
+      for (const size of [CHUNK_BYTES, CHUNK_BYTES + 1, 2 * CHUNK_BYTES]) {
+        const bytes = bigPdf(size);
+        await saveMaterial(ctx, "participant", "edge.pdf", bytes);
+        expect((await chunkSizes(ctx)).length).toBe(Math.ceil(size / CHUNK_BYTES));
+        const stored = (await getMaterialFile(ctx.db, "participant"))?.bytes;
+        expect(Buffer.from(stored as Uint8Array).equals(Buffer.from(bytes))).toBe(true);
+      }
+    });
+
+    it("leaves no old pieces behind when a PDF is replaced or deleted, and keeps other tests' PDFs apart", async () => {
+      const ctx = await makeTestContext();
+      await saveMaterial(ctx, "participant", "long.pdf", bigPdf(3 * CHUNK_BYTES));
+      await saveMaterial(ctx, "supervisor", "other.pdf", bigPdf(2 * CHUNK_BYTES));
+      await saveMaterial(ctx, "participant", "short.pdf", pdf("short"));
+      expect(await chunkSizes(ctx)).toHaveLength(1);
+      expect(new TextDecoder().decode((await getMaterialFile(ctx.db, "participant"))?.bytes)).toContain("short");
+
+      await deleteMaterial(ctx, "participant");
+      expect(await chunkSizes(ctx)).toHaveLength(0);
+      expect(await chunkSizes(ctx, "supervisor")).toHaveLength(2);
+    });
+
+    it("refuses to hand out a PDF that lost a piece or was altered", async () => {
+      const ctx = await makeTestContext();
+      await saveMaterial(ctx, "participant", "long.pdf", bigPdf(3 * CHUNK_BYTES));
+      await ctx.db.run("DELETE FROM material_chunks WHERE test_id = ? AND idx = ?", ["participant", 1]);
+      await expect(getMaterialFile(ctx.db, "participant")).rejects.toThrow(/incomplete or damaged/);
+
+      await saveMaterial(ctx, "participant", "long.pdf", bigPdf(3 * CHUNK_BYTES));
+      await ctx.db.run("UPDATE material_chunks SET data = ? WHERE test_id = ? AND idx = ?", [
+        new Uint8Array(CHUNK_BYTES),
+        "participant",
+        1,
+      ]);
+      await expect(getMaterialFile(ctx.db, "participant")).rejects.toThrow(/incomplete or damaged/);
+    });
   });
 });
 

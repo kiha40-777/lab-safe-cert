@@ -66,7 +66,8 @@ Design points that matter for a certification test:
   (see [AI usage](#ai-usage-disclosure)).
 - One study PDF and one question bank per test; single-answer multiple choice only (no images, no
   "select all that apply").
-- Data is kept in one SQLite file on one computer/server. There is no user-account system and no e-mail.
+- Data is kept in one SQLite file on one computer/server, or in one Turso database when it is hosted (see
+  [Deployment](#deployment)). There is no user-account system and no e-mail.
 
 ## AI usage disclosure
 
@@ -123,7 +124,8 @@ having reviewed and understood them; see [.claude/RESPONSIBLE_AI_USE.md](.claude
   Download it from <https://nodejs.org/> (click the green "LTS" button and accept the defaults).
   Check with `node --version`.
 - An internet connection for the first start (several hundred MB of packages are downloaded and unpacked once; about 0.5 GB on disk).
-- Nothing else: there is no separate database or web server to install.
+- Nothing else: there is no separate database or web server to install. (Only when the app is hosted online, the data
+  is kept in a free Turso database instead of a file: see [Deployment](#deployment).)
 
 ### Quick start (no command line needed)
 
@@ -235,7 +237,8 @@ image does, and answered correctly; see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 - **Change how many questions or the pass mark**: edit [`config/certification.json`](config/certification.json) and
   start the app again (it rebuilds by itself). See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 - **Back up**: stop the app and copy the `data` folder (it contains the database with everything, including the
-  PDFs). Restoring means putting the folder back.
+  PDFs). Restoring means putting the folder back. (With a Turso database, see
+  [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#6-backups-and-restore).)
 - **Update**: `git pull`, then start the app as usual. The start script notices what changed and reinstalls or rebuilds
   by itself (the data is kept).
 
@@ -272,12 +275,12 @@ which is what hosting platforms do) and edit it:
 
 | Variable | Meaning |
 |---|---|
-| `DATA_DIR` | Folder for the database and uploaded PDFs. Default `./data`. |
+| `DATA_DIR` | Folder for the database and uploaded PDFs. Default `./data`. Not used when `TURSO_DATABASE_URL` is set. |
+| `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | Keep the data in a [Turso](https://turso.tech) database instead of a folder: for hosting services whose disk is erased (such as Render's free plan). See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). |
 | `ADMIN_PASSWORD` | If set, this is the admin password and it cannot be changed in the app. Otherwise one is generated on the first start. |
 | `PARTICIPANT_PASSWORD` | If set, this is the participant password (managed here). Otherwise the admin sets it in the admin screen. |
-| `TRUST_PROXY` | `1` when the app runs behind a reverse proxy/hosting platform that sets `X-Forwarded-*` headers. |
-| `COOKIE_SECURE` | `1` to always mark cookies `Secure` (automatic over HTTPS behind a trusted proxy). |
-| `MAX_PDF_MB` | Largest study PDF in MB (default 25). |
+| `TRUST_PROXY` | `1` when the app runs behind a reverse proxy/hosting platform that sets `X-Forwarded-*` headers (already on at Render). |
+| `COOKIE_SECURE` | `1` to always mark cookies `Secure` (automatic over HTTPS behind a trusted proxy, and already on at Render). |
 | `DEFAULT_LANG` | `en` or `ja`: language for first-time visitors (default: the browser's language). |
 
 Ladder, questions per test, pass mark and choice limits: [`config/certification.json`](config/certification.json).
@@ -286,14 +289,20 @@ Interface texts: [`src/locales`](src/locales) (one JSON file per language). The 
 
 ## Deployment
 
-The app is a normal Node.js server that keeps its data in a folder, so it needs a host with **persistent storage**:
-your own PC or a lab computer (see above), a small VPS, or any container platform that offers a persistent volume
-(the `Dockerfile` is the portable way). Details, HTTPS, backups and hosting notes: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+The app is a normal Node.js server. Where it runs decides where the data lives:
 
-> **Vercel and Netlify cannot run this app as it is.** Their servers are short-lived and forget any file written
-> to disk, so the SQLite database and the uploaded PDFs would disappear. Running there would need the storage layer
-> (`src/server/db`) to be replaced by a hosted database; the code is prepared for that (all database access goes
-> through one small interface) but no such adapter is included. See docs/DEPLOYMENT.md.
+- **On your own PC or a lab computer** (see above): the data is a folder (`data/`). Nothing else to set up.
+- **On a hosting service whose disk is erased** (Render's free plan, for example): keep the data in a free
+  [Turso](https://turso.tech) database by setting `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`. The website itself gets
+  no new parts: the same app runs, and it saves to Turso instead of to a file. Step by step:
+  [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#render-free--turso-free).
+- **On a small VPS or a container platform with a persistent volume** (the `Dockerfile` is the portable way): the data
+  is a folder on that volume.
+
+HTTPS, backups and hosting notes: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+> **Vercel and Netlify** are not covered yet: their functions are short-lived, so a few more changes are needed
+> (the login limiter and the start-up database upgrade). See docs/DEPLOYMENT.md.
 
 ## Security and privacy
 
@@ -336,8 +345,9 @@ npm run check        # all three
 npm run build        # production build
 ```
 
-Tech stack: Next.js 16 (App Router) with React 19 and TypeScript, SQLite through Node's built-in `node:sqlite`,
-Vitest and ESLint. The only runtime dependencies are `next`, `react` and `react-dom`. Dependency versions are
+Tech stack: Next.js 16 (App Router) with React 19 and TypeScript, SQLite through Node's built-in `node:sqlite`
+(or a Turso database through the `@libsql/client` library when hosted), Vitest and ESLint. The runtime dependencies are
+`next`, `react`, `react-dom` and `@libsql/client`. Dependency versions are
 pinned exactly in `package.json` and `package-lock.json`.
 
 How the code is organised, how to change the pass mark, the level names, the question format or the storage,

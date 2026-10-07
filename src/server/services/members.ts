@@ -174,6 +174,11 @@ export async function updateMember(
 }
 
 export async function deleteMember(ctx: AppContext, id: string): Promise<void> {
-  const { changes } = await ctx.db.run("DELETE FROM members WHERE id = ?", [id]);
-  if (changes === 0) throw notFound("memberNotFound");
+  const deleted = await ctx.db.transaction(async (tx) => {
+    // Spelled out instead of left to the foreign keys, which not every database enforces.
+    await tx.run("UPDATE sessions SET member_id = NULL WHERE member_id = ?", [id]);
+    await tx.run("DELETE FROM attempts WHERE member_id = ?", [id]);
+    return (await tx.run("DELETE FROM members WHERE id = ?", [id])).changes;
+  });
+  if (deleted === 0) throw notFound("memberNotFound");
 }

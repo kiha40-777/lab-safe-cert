@@ -7,6 +7,8 @@
 # All data (database, uploaded PDFs) lives in /data: keep it on a volume or it is lost
 # when the container is removed. On the first start, the generated admin password is
 # printed once in the container log (docker logs <container>), unless ADMIN_PASSWORD is set.
+# Alternatively set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN: the data is then kept in that
+# Turso database and /data is not used (see docs/DEPLOYMENT.md).
 
 # ---- build stage: install dependencies and build the app ----------------------------
 FROM node:24-alpine AS build

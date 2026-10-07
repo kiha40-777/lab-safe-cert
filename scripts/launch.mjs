@@ -4,6 +4,7 @@
 //   node scripts/launch.mjs [options]
 //
 //   --lan                     let other devices on the same network connect
+//   --host <address>          listen on this address (a server or hosting service: 0.0.0.0; no local addresses are shown)
 //   --port <n>                port to listen on (default 3000, or $PORT)
 //   --data-dir <path>         where the database and uploads are stored (default ./data)
 //   --rebuild                 force a fresh build before starting
@@ -30,9 +31,10 @@ const value = (flag, fallback) => {
 checkNode();
 process.chdir(PROJECT_ROOT);
 
+const hostOption = value("--host", undefined);
 const lan = has("--lan");
 const port = value("--port", process.env.PORT ?? "3000");
-const host = lan ? "0.0.0.0" : "127.0.0.1";
+const host = hostOption ?? (lan ? "0.0.0.0" : "127.0.0.1");
 const extraEnv = {};
 const dataDir = value("--data-dir", undefined);
 if (dataDir) extraEnv.DATA_DIR = dataDir;
@@ -92,15 +94,20 @@ const lanAddresses = Object.values(networkInterfaces())
 
 console.log("\n  lab-safe-cert");
 console.log("  -------------");
-console.log(`  This computer:  http://localhost:${port}`);
-console.log(`  Admin screen:   http://localhost:${port}/admin`);
-if (lan) {
-  for (const address of lanAddresses) {
-    console.log(`  Share this URL: http://${address}:${port}   (other devices on the same network)`);
-  }
-  console.log("  Note: this connection is not encrypted (http). Use it on a trusted network only.");
+if (hostOption) {
+  // a server or a hosting service: it has its own address, so nothing about this computer is shown
+  console.log(`  Listening on ${host}:${port}   (admin screen: /admin)`);
 } else {
-  console.log("  Only this computer can connect. Use `npm run start:lan` to allow other devices.");
+  console.log(`  This computer:  http://localhost:${port}`);
+  console.log(`  Admin screen:   http://localhost:${port}/admin`);
+  if (lan) {
+    for (const address of lanAddresses) {
+      console.log(`  Share this URL: http://${address}:${port}   (other devices on the same network)`);
+    }
+    console.log("  Note: this connection is not encrypted (http). Use it on a trusted network only.");
+  } else {
+    console.log("  Only this computer can connect. Use `npm run start:lan` to allow other devices.");
+  }
 }
 console.log("  Stop with Ctrl+C.\n");
 

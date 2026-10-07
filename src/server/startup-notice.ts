@@ -2,7 +2,8 @@ export interface StartupNotice {
   generatedAdminPassword: string | null;
   resetIgnored: boolean;
   participantPasswordSet: boolean;
-  dataDir: string;
+  /** Where the data is kept (a folder or a Turso database). */
+  location: string;
 }
 
 /** Prints the first-start information (server log / terminal). */
@@ -19,6 +20,7 @@ export function printStartupNotice(info: StartupNotice): void {
       "",
       "  Write it down. Log in at /admin, then open Settings to change it.",
       "  If it is lost, restart with:  npm start -- --reset-admin-password",
+      "  (on a hosting service: set LSC_RESET_ADMIN_PASSWORD=1 for one start)",
       "==================================================================",
       "",
     );
@@ -35,6 +37,6 @@ export function printStartupNotice(info: StartupNotice): void {
       "                Settings to create it; participants cannot log in before that.",
     );
   }
-  lines.push(`[lab-safe-cert] Data folder: ${info.dataDir}`);
+  lines.push(`[lab-safe-cert] ${info.location}`);
   console.log(lines.join("\n"));
 }

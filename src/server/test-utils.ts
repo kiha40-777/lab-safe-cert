@@ -1,7 +1,12 @@
 // Helpers for automated tests only (never imported by application code).
 // The generated questions are meaningless placeholders, not real content.
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { openLibsql } from "./db/libsql";
 import { openSqlite } from "./db/sqlite";
 import { migrate } from "./db/migrations";
+import type { Db } from "./db/types";
 import type { CertificationConfig } from "@/lib/certification";
 import { certification } from "@/lib/config";
 import type { QuestionKind } from "@/lib/types";
@@ -75,6 +80,24 @@ export function makeBankJson(
   });
 }
 
+/**
+ * A fresh empty database. SQLite in memory, or with LSC_TEST_DB=libsql (`npm run test:libsql`) a libSQL
+ * client on a temporary file, so that the whole service test-suite can also be run on the adapter
+ * that talks to Turso.
+ */
+const temporaryFolders: string[] = [];
+process.once("exit", () => {
+  for (const dir of temporaryFolders) rmSync(dir, { recursive: true, force: true });
+});
+
+async function openTestDatabase(): Promise<Db> {
+  if (process.env.LSC_TEST_DB !== "libsql") return openSqlite(":memory:");
+  const dir = mkdtempSync(join(tmpdir(), "lsc-libsql-"));
+  temporaryFolders.push(dir);
+  const { createClient } = await import("@libsql/client");
+  return openLibsql(createClient({ url: `file:${join(dir, "test.db")}` }));
+}
+
 /** A fresh in-memory database with all migrations applied and a controllable clock. */
 export async function makeTestContext(
   options: {
@@ -83,7 +106,7 @@ export async function makeTestContext(
     config?: CertificationConfig;
   } = {},
 ): Promise<AppContext & { setNow: (date: Date) => void; advance: (ms: number) => void }> {
-  const db = openSqlite(":memory:");
+  const db = await openTestDatabase();
   let current = new Date("2030-01-01T00:00:00.000Z");
   const clock = () => current;
   await migrate(db, clock);

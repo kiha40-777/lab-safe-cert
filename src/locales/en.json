@@ -172,7 +172,6 @@
     "wrongCurrentPassword": "The current password is not correct.",
     "emptyFile": "The file is empty.",
     "notPdf": "This file is not a PDF.",
-    "fileTooLarge": "The file is larger than {maxMb} MB.",
     "payloadTooLarge": "The data is too large.",
     "unsupportedContentType": "The request has an unsupported format.",
     "memberNotSelected": "Please choose your name first.",

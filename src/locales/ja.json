@@ -172,7 +172,6 @@
     "wrongCurrentPassword": "現在のパスワードが正しくありません。",
     "emptyFile": "ファイルが空です。",
     "notPdf": "PDF ファイルではありません。",
-    "fileTooLarge": "ファイルが {maxMb} MB を超えています。",
     "payloadTooLarge": "データが大きすぎます。",
     "unsupportedContentType": "リクエストの形式に対応していません。",
     "memberNotSelected": "先に名前を選んでください。",

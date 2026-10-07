@@ -1,9 +1,8 @@
-import { join } from "node:path";
 import { certification } from "@/lib/config";
 import type { CertificationConfig } from "@/lib/certification";
 import { LoginRateLimiter } from "./auth/rate-limit";
 import { migrate } from "./db/migrations";
-import { openSqlite } from "./db/sqlite";
+import { openDatabase } from "./db/open";
 import type { Db } from "./db/types";
 import { readEnv, type Env } from "./env";
 import { cryptoRng, type Rng } from "./rng";
@@ -38,7 +37,7 @@ type Store = typeof globalThis & { __labSafeCert?: Promise<AppContext> };
 
 async function startApp(): Promise<AppContext> {
   const env = readEnv();
-  const db = openSqlite(join(env.dataDir, "app.db"));
+  const { db, location } = await openDatabase(env);
   await migrate(db);
   const ctx = createContext({ db, env });
   const { generatedAdminPassword, resetIgnored } = await ensurePasswords(ctx);
@@ -46,7 +45,7 @@ async function startApp(): Promise<AppContext> {
     generatedAdminPassword,
     resetIgnored,
     participantPasswordSet: await isPasswordSet(ctx, "participant"),
-    dataDir: env.dataDir,
+    location,
   });
   return ctx;
 }

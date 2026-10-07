@@ -19,7 +19,8 @@ services:
       PARTICIPANT_PASSWORD: ${PARTICIPANT_PASSWORD:-}
       TRUST_PROXY: ${TRUST_PROXY:-0}
       COOKIE_SECURE: ${COOKIE_SECURE:-0}
-      MAX_PDF_MB: ${MAX_PDF_MB:-25}
+      TURSO_DATABASE_URL: ${TURSO_DATABASE_URL:-}   # keep the data in a Turso database instead of the volume
+      TURSO_AUTH_TOKEN: ${TURSO_AUTH_TOKEN:-}
       DEFAULT_LANG: ${DEFAULT_LANG:-}
     volumes:
       - lab-safe-cert-data:/data

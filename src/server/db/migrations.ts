@@ -75,6 +75,22 @@ export const migrations: Migration[] = [
       `ALTER TABLE banks ADD COLUMN case_study_count INTEGER NOT NULL DEFAULT 0`,
     ],
   },
+  {
+    id: "003_material_chunks",
+    statements: [
+      // A study PDF is stored in pieces of a few hundred KB (see services/materials.ts), so no database or
+      // connection is ever asked to take one huge value, whatever the size of the PDF.
+      `CREATE TABLE material_chunks (
+         test_id TEXT NOT NULL,
+         idx INTEGER NOT NULL,
+         data BLOB NOT NULL,
+         PRIMARY KEY (test_id, idx)
+       )`,
+      // PDFs uploaded before this change become a single piece
+      `INSERT INTO material_chunks (test_id, idx, data) SELECT test_id, 0, data FROM materials`,
+      `ALTER TABLE materials DROP COLUMN data`,
+    ],
+  },
 ];
 
 /** Applies every migration that has not been applied yet (each in its own transaction). */
@@ -88,6 +104,8 @@ export async function migrate(db: Db, now: () => Date = () => new Date()): Promi
   for (const migration of migrations) {
     if (applied.has(migration.id)) continue;
     await db.transaction(async (tx) => {
+      // Asked again inside the transaction: a second server starting at the same time may have just done it.
+      if (await tx.get("SELECT id FROM schema_migrations WHERE id = ?", [migration.id])) return;
       for (const statement of migration.statements) await tx.run(statement);
       await tx.run("INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)", [
         migration.id,

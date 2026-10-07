@@ -1,4 +1,4 @@
-import { ApiError, notFound } from "@/server/http/errors";
+import { notFound } from "@/server/http/errors";
 import { readBody } from "@/server/http/body";
 import { pdfResponse } from "@/server/http/files";
 import { json, route } from "@/server/http/route";
@@ -10,15 +10,7 @@ export const dynamic = "force-dynamic";
 /** Uploads (or replaces) the study PDF. The body is the PDF itself; the file name goes in the X-Filename header. */
 export const PUT = route<{ testId: string }>({ auth: "admin", body: "pdf" }, async ({ req, ctx, params }) => {
   const test = requireTest(ctx.config, params.testId);
-  let bytes: Uint8Array;
-  try {
-    bytes = await readBody(req, ctx.env.maxPdfBytes);
-  } catch (error) {
-    if (error instanceof ApiError && error.code === "payloadTooLarge") {
-      throw new ApiError(413, "fileTooLarge", { maxMb: Math.floor(ctx.env.maxPdfBytes / (1024 * 1024)) });
-    }
-    throw error;
-  }
+  const bytes = await readBody(req); // only the admin uploads, so a PDF has no size limit
   const material = await saveMaterial(ctx, test.id, req.headers.get("x-filename"), bytes);
   return json({ material });
 });
